@@ -10,6 +10,7 @@ public interface ModelGenerator {
     /** 옵션 객체로 확장 가능한 버전 */
     default String generate(String sql, String className, GenerationOptions options) {
         if (options == null) return generateModel(sql, className);
-        return generateModelPagingAware(sql, className, options.includePagingColumn());
+//        return generateModelPagingAware(sql, className, options.includePagingColumn());
+        return generateModelPagingAware(sql, className, options.isIncludePagingColumn());
     }
 }

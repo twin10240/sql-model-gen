@@ -1,7 +1,6 @@
 package org.sqlmodel;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 class SimpleModelGeneratorImpl implements ModelGenerator {
 
@@ -21,7 +20,14 @@ class SimpleModelGeneratorImpl implements ModelGenerator {
 
         // 3. 클래스 빌드
         StringBuilder sb = new StringBuilder();
-        sb.append("public class ").append(className).append(" {\n\n");
+        sb.append("import com.douzone.gpd.restful.annotation.DzModel;").append("\n");
+        sb.append("import com.douzone.gpd.restful.annotation.DzModelField;").append("\n");
+        sb.append("import com.google.gson.annotations.SerializedName;").append("\n");
+
+        sb.append("\n");
+
+        sb.append("@DzModel(name = \"").append(className).append("\", desc = \"\")\n");
+        sb.append("public class ").append(className).append(" extends DzAbstractModel {\n\n");
 
         // 필드 정의 + 타입 기록
         List<String> fieldNames = new ArrayList<>();
@@ -29,8 +35,14 @@ class SimpleModelGeneratorImpl implements ModelGenerator {
 
         for (String col : cols) {
             String fieldName = extractAliasOrName(col.trim());
+            // 어노테이션
+            sb.append("    @SerializedName(\"").append(fieldName).append("\")\n");
+            sb.append("    @DzModelField(name = \"").append(fieldName).append("\", desc = \"\", colName = \"").append(fieldName).append("\")\n");
+
             String[] s = fieldName.split("_");
             getType(sb, fieldNames, fieldTypes, fieldName, s);
+
+            sb.append("\n");
         }
         sb.append("\n");
 
@@ -70,7 +82,14 @@ class SimpleModelGeneratorImpl implements ModelGenerator {
         String[] items = splitSelectItems(selectList);
 
         StringBuilder sb = new StringBuilder();
-        sb.append("public class ").append(className).append(" {\n\n");
+        sb.append("import com.douzone.gpd.restful.annotation.DzModel;").append("\n");
+        sb.append("import com.douzone.gpd.restful.annotation.DzModelField;").append("\n");
+        sb.append("import com.google.gson.annotations.SerializedName;").append("\n");
+
+        sb.append("\n");
+
+        sb.append("@DzModel(name = \"").append(className).append("\", desc = \"\")\n");
+        sb.append("public class ").append(className).append(" extends DzAbstractModel {\n\n");
 
         List<String> fieldNames = new ArrayList<>();
         List<String> fieldTypes = new ArrayList<>();
@@ -86,8 +105,14 @@ class SimpleModelGeneratorImpl implements ModelGenerator {
             }
 
             String fieldName = extractAliasOrName(alias);
+            // 어노테이션
+            sb.append("    @SerializedName(\"").append(fieldName).append("\")\n");
+            sb.append("    @DzModelField(name = \"").append(fieldName).append("\", desc = \"\", colName = \"").append(fieldName).append("\")\n");
+
             String[] s = fieldName.split("_");
             getType(sb, fieldNames, fieldTypes, fieldName, s);
+
+            sb.append("\n");
         }
         sb.append("\n");
 
@@ -111,11 +136,28 @@ class SimpleModelGeneratorImpl implements ModelGenerator {
     }
 
     private void getType(StringBuilder sb, List<String> fieldNames, List<String> fieldTypes, String fieldName, String[] s) {
-        String type = switch (s[s.length - 1]) {
-            case "SQ" -> "Integer";
-            case "QT" -> "BigDecimal";
-            default -> "String";
-        };
+//        String type = switch (s[s.length - 1]) {
+//            case "SQ" -> "Integer";
+//            case "QT" -> "BigDecimal";
+//            default -> "String";
+//        };
+
+        String type;
+        switch (s[s.length - 1]) {
+            case "SQ":
+                type = "Integer";
+                break;
+            case "QT":
+            case "AMT":
+            case "UM":
+            case "RT":
+            case "VR":
+                type = "BigDecimal";
+                break;
+            default:
+                type = "String";
+                break;
+        }
         sb.append("    private ").append(type).append(" ").append(fieldName).append(";\n");
         fieldNames.add(fieldName);
         fieldTypes.add(type);
@@ -186,7 +228,8 @@ class SimpleModelGeneratorImpl implements ModelGenerator {
             }
             buf.append(ch);
         }
-        if (!buf.isEmpty())
+//        if (!buf.isEmpty())
+        if (buf.length() > 0)
             out.add(buf.toString().trim());
 
         return out.toArray(new String[0]);
@@ -238,7 +281,13 @@ class SimpleModelGeneratorImpl implements ModelGenerator {
         }
         String cand = result.toString();
         if (cand.matches("^[0-9].*")) cand = "f_" + cand;
-        if (java.util.Set.of("class","enum","record","default","package").contains(cand)) cand = cand + "_";
+//        if (java.util.Set.of("class","enum","record","default","package").contains(cand)) cand = cand + "_";
+        // Java 8버전용
+        Set<String> reserved = new HashSet<>(Arrays.asList( "class", "enum", "record", "default", "package" ));
+        if (reserved.contains(cand)) {
+            cand = cand + "_";
+        }
+        
         return cand;
     }
 }
