@@ -48,19 +48,7 @@ class SimpleModelGeneratorImpl implements ModelGenerator {
         sb.append("\n");
 
         // getter/setter (필드 타입과 일치!)
-        for (int i = 0; i < fieldNames.size(); i++) {
-            String fieldName = fieldNames.get(i);
-            String type = fieldTypes.get(i);
-            String methodName = Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
-
-            sb.append("    public ").append(type).append(" get").append(methodName).append("() {\n")
-                    .append("        return ").append(fieldName).append(";\n")
-                    .append("    }\n\n");
-
-            sb.append("    public void set").append(methodName).append("(").append(type).append(" ").append(fieldName).append(") {\n")
-                    .append("        this.").append(fieldName).append(" = ").append(fieldName).append(";\n")
-                    .append("    }\n\n");
-        }
+        extracted(fieldNames, fieldTypes, sb);
 
         sb.append("}");
         return sb.toString();
@@ -119,10 +107,17 @@ class SimpleModelGeneratorImpl implements ModelGenerator {
         sb.append("\n");
 
         // 2) getter/setter (필드 타입과 일치!)
+        extracted(fieldNames, fieldTypes, sb);
+
+        sb.append("}");
+        return sb.toString();
+    }
+
+    private static void extracted(List<String> fieldNames, List<String> fieldTypes, StringBuilder sb) {
         for (int i = 0; i < fieldNames.size(); i++) {
-            String fieldName = fieldNames.get(i);
+            String fieldName = fieldNames.get(i).toLowerCase();
             String type = fieldTypes.get(i);
-            String methodName = Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
+            String methodName = Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1).toLowerCase();
 
             sb.append("    public ").append(type).append(" get").append(methodName).append("() {\n")
                     .append("        return ").append(fieldName).append(";\n")
@@ -132,9 +127,6 @@ class SimpleModelGeneratorImpl implements ModelGenerator {
                     .append("        this.").append(fieldName).append(" = ").append(fieldName).append(";\n")
                     .append("    }\n\n");
         }
-
-        sb.append("}");
-        return sb.toString();
     }
 
     private void getType(StringBuilder sb, List<String> fieldNames, List<String> fieldTypes, String fieldName, String[] s) {
@@ -144,6 +136,7 @@ class SimpleModelGeneratorImpl implements ModelGenerator {
 //            default -> "String";
 //        };
 
+        // 자바 8버전용
         String type;
         switch (s[s.length - 1]) {
             case "SQ":
@@ -160,7 +153,7 @@ class SimpleModelGeneratorImpl implements ModelGenerator {
                 type = "String";
                 break;
         }
-        sb.append("    private ").append(type).append(" ").append(fieldName).append(";\n");
+        sb.append("    private ").append(type).append(" ").append(fieldName.toLowerCase(Locale.ROOT)).append(";\n");
         fieldNames.add(fieldName);
         fieldTypes.add(type);
     }
