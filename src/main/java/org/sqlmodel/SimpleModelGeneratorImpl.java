@@ -20,6 +20,7 @@ class SimpleModelGeneratorImpl implements ModelGenerator {
 
         // 3. 클래스 빌드
         StringBuilder sb = new StringBuilder();
+        sb.append("import com.douzone.gpd.jdbc.mybatis.model.DzAbstractModel;").append("\n");
         sb.append("import com.douzone.gpd.restful.annotation.DzModel;").append("\n");
         sb.append("import com.douzone.gpd.restful.annotation.DzModelField;").append("\n");
         sb.append("import com.google.gson.annotations.SerializedName;").append("\n");
@@ -82,6 +83,7 @@ class SimpleModelGeneratorImpl implements ModelGenerator {
         String[] items = splitSelectItems(selectList);
 
         StringBuilder sb = new StringBuilder();
+        sb.append("import com.douzone.gpd.jdbc.mybatis.model.DzAbstractModel;").append("\n");
         sb.append("import com.douzone.gpd.restful.annotation.DzModel;").append("\n");
         sb.append("import com.douzone.gpd.restful.annotation.DzModelField;").append("\n");
         sb.append("import com.google.gson.annotations.SerializedName;").append("\n");
