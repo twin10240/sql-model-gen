@@ -1,5 +1,10 @@
 package org.sqlmodel;
 
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
+
 public final class Main {
     private Main() {}
 
@@ -8,10 +13,8 @@ public final class Main {
     }
 
     static int run(String[] args) {
-        if (args.length == 1 && "--help".equals(args[0])) {
-            System.out.println("Usage: modelconvertor [options]");
-            return 0;
-        }
-        return 2;
+        return new ModelConvertorApplication(new InputStreamReader(System.in, StandardCharsets.UTF_8),
+                new OutputStreamWriter(System.out, StandardCharsets.UTF_8),
+                new OutputStreamWriter(System.err, StandardCharsets.UTF_8), Paths.get("").toAbsolutePath()).run(args);
     }
 }
