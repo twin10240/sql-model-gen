@@ -38,7 +38,7 @@ final class DzModelRenderer {
         }
 
         for (ColumnSpec column : columns) {
-            String suffix = JavaNames.toAccessorSuffix(column.fieldName());
+            String suffix = Character.toUpperCase(column.fieldName().charAt(0)) + column.fieldName().substring(1);
             source.append("    public ").append(column.javaType()).append(" get").append(suffix).append("() {\n")
                     .append("        return ").append(column.fieldName()).append(";\n")
                     .append("    }\n\n")

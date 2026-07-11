@@ -79,4 +79,15 @@ public class DzModelRendererTest {
     public void rejectsInvalidClassName() {
         new DzModelRenderer().render("com.company", "class", Collections.<ColumnSpec>emptyList());
     }
+
+    @Test
+    public void accessorPreservesNormalizedFieldIdentifier() {
+        String source = new DzModelRenderer().render(
+                "com.company",
+                "ValueModel",
+                Collections.singletonList(new ColumnSpec(1, "1ST_VALUE", "f_1stValue", "String", "")));
+
+        org.junit.Assert.assertTrue(source.contains("public String getF_1stValue()"));
+        org.junit.Assert.assertTrue(source.contains("public void setF_1stValue(String f_1stValue)"));
+    }
 }
