@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ModelConvertor CLI 및 Oracle 메타데이터 연동 설계</title>
+  <style>
+    :root { color-scheme: light dark; --accent: #3578e5; --border: #8885; --code: #8882; }
+    body { max-width: 1040px; margin: 0 auto; padding: 32px 24px 80px; font: 16px/1.65 system-ui, sans-serif; }
+    h1, h2, h3 { line-height: 1.25; margin-top: 1.8em; }
+    h1 { margin-top: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+    th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+    pre, code { font-family: ui-monospace, Consolas, monospace; background: var(--code); }
+    pre { padding: 14px; overflow: auto; border-radius: 6px; }
+    code { padding: 0.12em 0.3em; border-radius: 3px; }
+    pre code { padding: 0; background: transparent; }
+    .meta { border-left: 4px solid var(--accent); padding-left: 14px; }
+    .flow { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>ModelConvertor CLI 및 Oracle 메타데이터 연동 설계</h1>
+  <ul class="meta">
+    <li>작성일: 2026-07-11</li>
+    <li>상태: 승인됨</li>
+    <li>대상: <code>modelconvertor</code></li>
+    <li>환경: Java 8, Oracle, Windows</li>
+  </ul>
+
+  <h2>1. 목적</h2>
+  <p>DZ Java 8 환경에서 사용할 모델 클래스를 SQL로 생성하는 개인용 CLI 도구를 만든다. DZ 의존성을 직접 참조하지 않고 Oracle JDBC 결과 메타데이터로 타입을 결정하며, 원본 테이블 컬럼을 명확히 추적할 수 있을 때만 Oracle 컬럼 설명을 반영한다.</p>
+  <ul>
+    <li>접미사 추측 대신 JDBC 결과 메타데이터 우선</li>
+    <li>실제 데이터 미조회</li>
+    <li>계산식 설명의 임의 추론 금지</li>
+    <li>직접 입력, SQL 파일, 표준 입력 지원</li>
+    <li>UTF-8과 기존 파일 보호</li>
+  </ul>
+
+  <h2>2. 범위</h2>
+  <h3>포함</h3>
+  <p>Java 8 CLI, Oracle JDBC 메타데이터, <code>SELECT</code>/<code>WITH</code>, DZ 모델 생성, 직접 컬럼 설명 조회, UTF-8 출력, 명시적 덮어쓰기를 포함한다.</p>
+  <h3>제외</h3>
+  <p>다른 DB, MyBatis 동적 태그와 파라미터, 실제 결과 데이터, GUI, 팀 배포, AI 플러그인, 완전한 SQL 파서는 제외한다. AI 스킬은 CLI 검증 후 동일 CLI를 호출하는 얇은 계층으로 별도 설계한다.</p>
+
+  <h2>3. 배포 및 설정</h2>
+  <pre><code>C:\tools\modelconvertor\
+├── modelconvertor.jar
+├── modelconvertor.cmd
+└── ojdbc8.jar
+
+C:\Users\&lt;사용자&gt;\.modelconvertor\oracle.properties</code></pre>
+  <pre><code>oracle.url=jdbc:oracle:thin:@127.0.0.1:1521/ORCL
+oracle.username=MY_USER
+oracle.password=MY_PASSWORD
+oracle.schema=MY_SCHEMA</code></pre>
+  <p>설정은 Git에 저장하지 않고 로그에도 출력하지 않는다. 가능하면 조회 전용 계정을 사용한다. 구현은 <code>java.sql</code>만 사용하고 드라이버는 실행 클래스패스에 둔다.</p>
+
+  <h2>4. CLI 입력</h2>
+  <p>입력 우선순위는 <code>--sql-file</code>, 표준 입력, 대화형 입력이다. 대화형 SQL은 마지막 단독 줄 <code>:end</code>로 종료한다. 셸 이스케이프 문제 때문에 <code>--sql "..."</code>은 제공하지 않는다.</p>
+  <pre><code>--sql-file &lt;경로&gt;
+--class-name &lt;클래스명&gt;
+--package &lt;패키지명&gt;
+--output &lt;소스 루트&gt;
+--config &lt;DB 설정 파일&gt;
+--overwrite
+--stdout
+--help</code></pre>
+
+  <h2>5. 출력</h2>
+  <pre><code>{현재 작업 디렉터리}/src/main/java/{패키지 경로}/{클래스명}.java</code></pre>
+  <ul>
+    <li>패키지 디렉터리 자동 생성</li>
+    <li>기존 파일은 기본 실패, <code>--overwrite</code>에서만 교체</li>
+    <li>이어쓰기 금지 및 UTF-8 고정</li>
+    <li><code>--stdout</code>은 파일을 쓰지 않음</li>
+    <li>대화형 쓰기 전 최종 절대 경로 표시</li>
+  </ul>
+
+  <h2>6. 처리 흐름</h2>
+  <pre class="flow"><code>SQL 입력
+  → 주석 및 마지막 세미콜론 정리
+  → SELECT/WITH 안전성 검사
+  → 결과 항목·테이블 별칭·직접 컬럼 분석
+  → Oracle 결과 메타데이터 조회
+  → 중복 라벨 검사
+  → 직접 컬럼의 Oracle 설명 조회
+  → 타입 및 Java 이름 결정
+  → DZ 모델 생성
+  → stdout 또는 UTF-8 파일 출력</code></pre>
+
+  <h2>7. SQL 안전성</h2>
+  <p>주석 제거 후 <code>SELECT</code> 또는 <code>WITH</code>만 허용하고 마지막 세미콜론을 제거한다. 여러 문장과 변경·DDL 문장은 거부한다. 실패 시 파일을 만들지 않고 0이 아닌 종료 코드를 반환한다. DB 계정도 조회 전용을 권장한다.</p>
+
+  <h2>8. JDBC 결과 메타데이터</h2>
+  <p>우선 <code>connection.prepareStatement(sql).getMetaData()</code>로 실행 없이 결과 메타데이터를 얻는다. 드라이버가 메타데이터를 주지 못하면 다음 0건 쿼리를 fallback으로 사용한다.</p>
+  <pre><code>SELECT *
+  FROM (
+       -- 원본 SELECT
+  )
+ WHERE 1 = 0</code></pre>
+  <p>결과 라벨·순서, JDBC 타입, precision, scale, 길이, NULL 허용 여부를 사용한다.</p>
+
+  <h2>9. 이름 및 설명</h2>
+  <table>
+    <thead><tr><th>항목</th><th>AS가 있는 경우</th><th>AS가 없는 경우</th></tr></thead>
+    <tbody>
+      <tr><td>SerializedName</td><td>AS 별칭</td><td>원본 결과 라벨</td></tr>
+      <tr><td>DzModelField.name</td><td>AS 별칭</td><td>원본 결과 라벨</td></tr>
+      <tr><td>DzModelField.colName</td><td>AS 별칭</td><td>원본 결과 라벨</td></tr>
+      <tr><td>Java 변수</td><td>별칭의 camelCase</td><td>원본 라벨의 camelCase</td></tr>
+      <tr><td>desc</td><td colspan="2">직접 원본 컬럼이 확정될 때만 ALL_COL_COMMENTS 사용</td></tr>
+      <tr><td>Java 타입</td><td colspan="2">JDBC 결과 메타데이터</td></tr>
+    </tbody>
+  </table>
+  <pre><code>@SerializedName("employeeName")
+@DzModelField(name = "employeeName", desc = "사원명", colName = "employeeName")
+private String employeeName;</code></pre>
+  <p><code>COALESCE</code>, <code>CASE</code>, 연산식 등 원본 컬럼이 하나로 확정되지 않는 계산 컬럼은 결과 타입과 별칭만 사용하고 설명은 빈 문자열로 둔다.</p>
+
+  <h2>10. 충돌과 식별자</h2>
+  <p>JDBC 결과 라벨 또는 camelCase 정규화 후 Java 식별자가 중복되면 중단하고 <code>AS</code> 별칭을 요구한다. SQL 라벨은 어노테이션에 보존하고 숫자 시작·예약어 처리는 Java 식별자에만 적용한다.</p>
+
+  <h2>11. 타입 매핑</h2>
+  <table>
+    <thead><tr><th>Oracle/JDBC 타입</th><th>Java 타입</th></tr></thead>
+    <tbody>
+      <tr><td>VARCHAR 계열, CHAR 계열, CLOB 계열</td><td>String</td></tr>
+      <tr><td>정수형 NUMBER</td><td>Integer 또는 Long</td></tr>
+      <tr><td>소수형·큰 NUMBER</td><td>BigDecimal</td></tr>
+      <tr><td>FLOAT, BINARY_FLOAT, BINARY_DOUBLE</td><td>Double</td></tr>
+      <tr><td>DATE, TIMESTAMP 계열</td><td>LocalDateTime</td></tr>
+      <tr><td>미지원 타입</td><td>String fallback 및 경고</td></tr>
+    </tbody>
+  </table>
+  <p><code>BigDecimal</code>과 <code>LocalDateTime</code> import는 필요할 때만 추가한다. DZ MyBatis의 <code>LocalDateTime</code> 타입 핸들러 호환성은 실제 모델로 검증한다.</p>
+
+  <h2>12. RN 및 ROWNUM</h2>
+  <p>JDBC 결과 컬럼을 모두 포함한다. 기존 자동 제외 기능은 제거하며, 불필요한 페이징 컬럼은 입력 SQL의 최종 SELECT에서 제외한다.</p>
+
+  <h2>13. 오류 처리</h2>
+  <ul>
+    <li>설정 누락, DB 연결, SQL 분석 오류는 파일 생성 전에 중단</li>
+    <li>비밀번호는 출력하지 않음</li>
+    <li>메타데이터 1차 및 fallback 실패 시 중단</li>
+    <li>설명 없음은 빈 설명으로 계속</li>
+    <li>중복 라벨·식별자는 AS 사용을 안내</li>
+    <li>잘못된 클래스명·패키지는 DB 접속 전에 거부</li>
+  </ul>
+
+  <h2>14. 코드 구조</h2>
+  <p>CLI, Config, SQL analysis, Metadata, Model generation, Output의 책임으로 나눈다. 기존 <code>FileCreator</code>, main 기반 테스트, 하드코딩 SQL 샘플은 새 CLI와 테스트 구조로 대체한다.</p>
+
+  <h2>15. Maven 빌드</h2>
+  <ul>
+    <li>Java 8 및 UTF-8</li>
+    <li><code>maven-jar-plugin</code>으로 Main-Class 지정</li>
+    <li>외부 ojdbc8.jar는 CMD 런타임 클래스패스 사용</li>
+    <li>Shade 플러그인 미사용</li>
+    <li>Java 8 호환 JUnit 추가</li>
+  </ul>
+
+  <h2>16. 검증 및 완료 기준</h2>
+  <p>직접·별칭·계산 컬럼, JOIN, WITH, 서브쿼리, 중복 이름, 타입 매핑, UTF-8, 파일 충돌을 단위 테스트한다. Oracle 통합 테스트에서는 getMetaData와 0건 fallback, 한글 설명, LocalDateTime, 비밀정보 미출력을 검증한다.</p>
+  <ul>
+    <li>결과 컬럼 순서와 Java 타입이 JDBC 메타데이터와 일치</li>
+    <li>직접 컬럼만 DB 설명 사용, 계산식은 빈 설명</li>
+    <li>실제 조회 행 없음</li>
+    <li>생성 코드가 Java 8에서 컴파일</li>
+    <li>기존 파일은 명시적 옵션 없이 변경되지 않음</li>
+  </ul>
+
+  <h2>17. 구현 순서</h2>
+  <ol>
+    <li>타입·이름·SQL 분석 단위 테스트</li>
+    <li>안전한 UTF-8 출력과 CLI</li>
+    <li>설정 로더와 Oracle 연결</li>
+    <li>JDBC 결과 메타데이터와 0건 fallback</li>
+    <li>원본 컬럼 설명 조회</li>
+    <li>모델 생성 통합</li>
+    <li>Oracle 통합 검증</li>
+    <li>CLI 안정화 후 AI 스킬 별도 설계</li>
+  </ol>
+</body>
+</html>
