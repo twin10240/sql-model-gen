@@ -42,7 +42,7 @@ final class SqlInspector {
 
     private static String normalize(String sql) {
         if (sql == null) throw new IllegalArgumentException("SQL is required");
-        String value = stripLeadingComments(sql).trim();
+        String value = stripComments(sql).trim();
         int semicolon = findOutsideLiteral(value, ';', 0);
         if (semicolon >= 0) {
             if (semicolon != value.length() - 1 || findOutsideLiteral(value, ';', semicolon + 1) >= 0) {
@@ -54,21 +54,43 @@ final class SqlInspector {
         return value;
     }
 
-    private static String stripLeadingComments(String sql) {
-        int index = 0;
-        while (true) {
-            while (index < sql.length() && Character.isWhitespace(sql.charAt(index))) index++;
-            if (sql.startsWith("--", index)) {
-                int end = sql.indexOf('\n', index + 2);
-                index = end < 0 ? sql.length() : end + 1;
-            } else if (sql.startsWith("/*", index)) {
-                int end = sql.indexOf("*/", index + 2);
+    private static String stripComments(String sql) {
+        StringBuilder result = new StringBuilder(sql.length());
+        boolean string = false;
+        for (int i = 0; i < sql.length(); i++) {
+            char c = sql.charAt(i);
+            if (string) {
+                result.append(c);
+                if (c == '\'' && i + 1 < sql.length() && sql.charAt(i + 1) == '\'') result.append(sql.charAt(++i));
+                else if (c == '\'') string = false;
+            } else if (c == '\'') {
+                string = true;
+                result.append(c);
+            } else if (sql.startsWith("--", i)) {
+                int end = sql.indexOf('\n', i + 2);
+                if (end < 0) break;
+                result.append('\n');
+                i = end;
+            } else if (sql.startsWith("/*", i)) {
+                int end = sql.indexOf("*/", i + 2);
                 if (end < 0) throw new IllegalArgumentException("Unterminated SQL comment");
-                index = end + 2;
+                boolean newline = false;
+                for (int j = i + 2; j < end; j++) {
+                    if (sql.charAt(j) == '\n') {
+                        result.append('\n');
+                        newline = true;
+                    }
+                }
+                if (!newline && result.length() > 0 && !Character.isWhitespace(result.charAt(result.length() - 1))
+                        && end + 2 < sql.length() && !Character.isWhitespace(sql.charAt(end + 2))) {
+                    result.append(' ');
+                }
+                i = end + 1;
             } else {
-                return sql.substring(index);
+                result.append(c);
             }
         }
+        return result.toString();
     }
 
     private static boolean startsWithKeyword(String sql, String keyword) {

@@ -18,6 +18,20 @@ public class SqlInspectorTest {
     }
 
     @Test
+    public void removesTrailingLineCommentContainingSemicolon() {
+        SqlInspection inspection = SqlInspector.inspect("SELECT 1 FROM DUAL -- harmless;");
+
+        assertEquals("SELECT 1 FROM DUAL", inspection.normalizedSql());
+    }
+
+    @Test
+    public void removesInternalBlockCommentContainingSemicolon() {
+        SqlInspection inspection = SqlInspector.inspect("SELECT E.EMP_NO /* note; still one query */\nFROM HR_EMP E");
+
+        assertEquals("SELECT E.EMP_NO \nFROM HR_EMP E", inspection.normalizedSql());
+    }
+
+    @Test
     public void acceptsSelectAndWithQueries() {
         assertEquals("SELECT 1 FROM DUAL", SqlInspector.inspect("SELECT 1 FROM DUAL").normalizedSql());
         assertEquals("WITH X AS (SELECT 1 N FROM DUAL) SELECT X.N FROM X",
