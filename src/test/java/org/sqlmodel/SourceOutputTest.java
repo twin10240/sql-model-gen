@@ -45,4 +45,10 @@ public class SourceOutputTest {
         assertEquals("source", stdout.toString());
         assertEquals(0, temporary.getRoot().list().length);
     }
+
+    @Test public void resolvesRelativeOutputAgainstInjectedWorkingDirectory() {
+        Path cwd = temporary.getRoot().toPath();
+        assertEquals(cwd.resolve("generated/p/Model.java").toAbsolutePath(),
+                new SourceOutput(cwd, new StringWriter()).path("p", "Model", java.nio.file.Paths.get("generated")));
+    }
 }

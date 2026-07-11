@@ -15,6 +15,7 @@ public final class Main {
     static int run(String[] args) {
         return new ModelConvertorApplication(new InputStreamReader(System.in, StandardCharsets.UTF_8),
                 new OutputStreamWriter(System.out, StandardCharsets.UTF_8),
-                new OutputStreamWriter(System.err, StandardCharsets.UTF_8), Paths.get("").toAbsolutePath()).run(args);
+                new OutputStreamWriter(System.err, StandardCharsets.UTF_8), Paths.get("").toAbsolutePath(),
+                System.console() != null).run(args);
     }
 }

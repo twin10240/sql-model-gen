@@ -2,6 +2,7 @@ package org.sqlmodel;
 
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -16,12 +17,17 @@ final class ModelConvertorApplication {
     private final Writer out;
     private final Writer err;
     private final Path cwd;
+    private final boolean terminalInput;
     private final ConfigLoader configs;
     private final ConnectionOpener connections;
     private final MetadataLoader metadata;
 
     ModelConvertorApplication(Reader input, Writer out, Writer err, Path cwd) {
-        this(input, out, err, cwd,
+        this(input, out, err, cwd, false);
+    }
+
+    ModelConvertorApplication(Reader input, Writer out, Writer err, Path cwd, boolean terminalInput) {
+        this(input, out, err, cwd, terminalInput,
                 path -> path == null ? OracleConfig.loadDefault() : OracleConfig.load(path),
                 config -> DriverManager.getConnection(config.url(), config.username(), config.password()),
                 (connection, inspection, config) -> new OracleMetadataReader(config).read(connection, inspection));
@@ -29,10 +35,16 @@ final class ModelConvertorApplication {
 
     ModelConvertorApplication(Reader input, Writer out, Writer err, Path cwd, ConfigLoader configs,
                               ConnectionOpener connections, MetadataLoader metadata) {
+        this(input, out, err, cwd, false, configs, connections, metadata);
+    }
+
+    ModelConvertorApplication(Reader input, Writer out, Writer err, Path cwd, boolean terminalInput,
+                              ConfigLoader configs, ConnectionOpener connections, MetadataLoader metadata) {
         this.input = new SqlInput(input);
         this.out = out;
         this.err = err;
         this.cwd = cwd;
+        this.terminalInput = terminalInput;
         this.configs = configs;
         this.connections = connections;
         this.metadata = metadata;
@@ -42,11 +54,13 @@ final class ModelConvertorApplication {
         try {
             CliOptions options = CliOptions.parse(args);
             if (options.help()) { out.write(usage()); out.flush(); return 0; }
+            if (!terminalInput && (options.className() == null || options.packageName() == null)) {
+                throw new IllegalArgumentException("--class-name and --package are required for piped input");
+            }
             String className = options.className() == null ? input.prompt("Class name: ", out) : options.className();
             String packageName = options.packageName() == null ? input.prompt("Package name: ", out) : options.packageName();
             new DzModelRenderer().render(packageName, className, java.util.Collections.<ColumnSpec>emptyList());
-            boolean interactive = args.length == 0;
-            boolean interactiveSql = options.sqlFile() == null && interactive;
+            boolean interactiveSql = options.sqlFile() == null && terminalInput;
             if (interactiveSql) { out.write("Paste SQL; enter :end on its own line to finish.\n"); out.flush(); }
             SqlInspection inspection = SqlInspector.inspect(input.read(options.sqlFile(), interactiveSql));
             OracleConfig config = configs.load(options.config());
@@ -56,7 +70,7 @@ final class ModelConvertorApplication {
             }
             String source = new DzModelRenderer().render(packageName, className, columns);
             SourceOutput output = new SourceOutput(cwd, out);
-            if (interactive && !options.stdout()) {
+            if (terminalInput && !options.stdout()) {
                 out.write("Output: " + output.path(packageName, className, options.output()) + System.lineSeparator());
                 out.write("Overwrite: " + (options.overwrite() ? "enabled" : "disabled") + System.lineSeparator());
                 out.flush();
@@ -64,6 +78,9 @@ final class ModelConvertorApplication {
             Path path = output.write(source, packageName, className, options.output(), options.overwrite(), options.stdout());
             if (path != null) { out.write("Created " + path + System.lineSeparator()); out.flush(); }
             return 0;
+        } catch (FileAlreadyExistsException e) {
+            error("Output file already exists: " + e.getFile() + ". Use --overwrite to replace it");
+            return 1;
         } catch (IllegalArgumentException e) {
             error(e.getMessage());
             return 2;

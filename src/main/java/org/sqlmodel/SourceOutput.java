@@ -15,6 +15,7 @@ final class SourceOutput {
 
     Path path(String packageName, String className, Path sourceRoot) {
         Path root = sourceRoot == null ? cwd.resolve("src/main/java") : sourceRoot;
+        if (!root.isAbsolute()) root = cwd.resolve(root);
         return root.resolve(packageName.replace('.', '/')).resolve(className + ".java").toAbsolutePath();
     }
 

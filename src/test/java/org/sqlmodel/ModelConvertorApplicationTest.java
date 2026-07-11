@@ -53,15 +53,40 @@ public class ModelConvertorApplicationTest {
         Files.createDirectories(expected.getParent());
         Files.write(expected, "existing".getBytes(StandardCharsets.UTF_8));
         StringWriter out = new StringWriter();
+        StringWriter err = new StringWriter();
         ModelConvertorApplication app = new ModelConvertorApplication(
                 new StringReader("DualModel\ncom.example\nSELECT d.DUMMY FROM dual d\n:end\n"), out,
-                new StringWriter(), temporary.getRoot().toPath(), path -> OracleConfig.load(configFile()),
+                err, temporary.getRoot().toPath(), true, path -> OracleConfig.load(configFile()),
                 config -> null, (connection, inspection, config) -> Collections.emptyList());
 
         assertEquals(1, app.run(new String[0]));
         assertTrue(out.toString().contains(expected.toString()));
         assertTrue(out.toString().contains("Overwrite: disabled"));
         assertEquals("existing", new String(Files.readAllBytes(expected), StandardCharsets.UTF_8));
+        assertTrue(err.toString().contains(expected.toString()));
+        assertTrue(err.toString().contains("Use --overwrite"));
+    }
+
+    @Test public void terminalPartialOptionsUseEndMarker() {
+        final String[] sql = {null};
+        ModelConvertorApplication app = new ModelConvertorApplication(
+                new StringReader("DualModel\ncom.example\nSELECT 1 FROM dual\n:end\nignored"), new StringWriter(),
+                new StringWriter(), temporary.getRoot().toPath(), true, path -> OracleConfig.load(configFile()),
+                config -> null, (connection, inspection, config) -> { sql[0] = inspection.normalizedSql(); return Collections.emptyList(); });
+
+        assertEquals(0, app.run(new String[]{"--overwrite", "--stdout"}));
+        assertEquals("SELECT 1 FROM dual", sql[0]);
+    }
+
+    @Test public void pipedInputReadsToEofEvenWithPartialOptions() {
+        final String[] sql = {null};
+        ModelConvertorApplication app = new ModelConvertorApplication(
+                new StringReader("SELECT 1 FROM dual\n:end\n"), new StringWriter(), new StringWriter(),
+                temporary.getRoot().toPath(), false, path -> OracleConfig.load(configFile()), config -> null,
+                (connection, inspection, config) -> { sql[0] = inspection.normalizedSql(); return Collections.emptyList(); });
+
+        assertEquals(0, app.run(new String[]{"--class-name", "DualModel", "--package", "p", "--stdout"}));
+        assertTrue(sql[0].endsWith(":end"));
     }
 
     private ModelConvertorApplication application(Path config, ModelConvertorApplication.ConnectionOpener opener, StringReader input) {
