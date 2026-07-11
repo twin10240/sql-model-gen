@@ -77,6 +77,22 @@ public class SqlInspectorTest {
     }
 
     @Test
+    public void nestedSubqueryAliasDoesNotOverwriteOuterAlias() {
+        SqlInspection inspection = SqlInspector.inspect(
+                "SELECT S.ID FROM ACTUAL S WHERE EXISTS (SELECT 1 FROM SECRET S WHERE S.ID = 1)");
+
+        assertEquals(new SourceColumn(null, "ACTUAL", "ID"), inspection.sourceColumns().get("ID"));
+    }
+
+    @Test
+    public void sqlKeywordsInsideStringDoNotCreateAliases() {
+        SqlInspection inspection = SqlInspector.inspect(
+                "SELECT S.ID FROM ACTUAL S WHERE 'FROM SECRET S JOIN HIDDEN H' = 'x'");
+
+        assertEquals(new SourceColumn(null, "ACTUAL", "ID"), inspection.sourceColumns().get("ID"));
+    }
+
+    @Test
     public void expressionsHaveNoDirectSourceMapping() {
         SqlInspection inspection = SqlInspector.inspect(
                 "SELECT COALESCE(E.EMP_NM, U.USER_NM) AS displayName, "

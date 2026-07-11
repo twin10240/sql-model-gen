@@ -173,13 +173,52 @@ final class SqlInspector {
 
     private static Map<String, TableName> tableAliases(String fromClause) {
         Map<String, TableName> aliases = new HashMap<String, TableName>();
-        Matcher matcher = TABLE.matcher(fromClause);
+        Matcher matcher = TABLE.matcher(outerFromScope(fromClause));
         while (matcher.find()) {
             String owner = matcher.group(2) == null ? null : matcher.group(1);
             String table = matcher.group(2) == null ? matcher.group(1) : matcher.group(2);
             aliases.put(matcher.group(3).toUpperCase(Locale.ROOT), new TableName(owner, table));
         }
         return aliases;
+    }
+
+    private static String outerFromScope(String fromClause) {
+        StringBuilder outer = new StringBuilder(fromClause.length());
+        int depth = 0;
+        boolean string = false;
+        for (int i = 0; i < fromClause.length(); i++) {
+            char c = fromClause.charAt(i);
+            if (string) {
+                outer.append(' ');
+                if (c == '\'' && i + 1 < fromClause.length() && fromClause.charAt(i + 1) == '\'') {
+                    outer.append(' ');
+                    i++;
+                } else if (c == '\'') {
+                    string = false;
+                }
+            } else if (c == '\'') {
+                string = true;
+                outer.append(' ');
+            } else if (c == '(') {
+                depth++;
+                outer.append(' ');
+            } else if (c == ')') {
+                depth--;
+                outer.append(' ');
+            } else {
+                outer.append(depth == 0 ? c : ' ');
+            }
+        }
+
+        String value = outer.toString();
+        int end = value.length();
+        String[] clauses = {"WHERE", "GROUP", "HAVING", "ORDER", "UNION", "MINUS", "INTERSECT",
+                "CONNECT", "START", "MODEL", "FETCH", "OFFSET"};
+        for (String clause : clauses) {
+            int index = findTopLevelKeyword(value, clause, 4);
+            if (index >= 0 && index < end) end = index;
+        }
+        return value.substring(0, end);
     }
 
     private static final class TableName {
