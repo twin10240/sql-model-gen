@@ -11,6 +11,9 @@ public class JavaNamesTest {
         assertEquals("employeeName", JavaNames.toFieldName("employeeName"));
         assertEquals("f_1stValue", JavaNames.toFieldName("1ST_VALUE"));
         assertEquals("class_", JavaNames.toFieldName("class"));
+        assertEquals("true_", JavaNames.toFieldName("true"));
+        assertEquals("false_", JavaNames.toFieldName("false"));
+        assertEquals("null_", JavaNames.toFieldName("null"));
         assertEquals("EmpNm", JavaNames.toAccessorSuffix("EMP_NM"));
     }
 }
