@@ -35,6 +35,7 @@ public class ModelConvertorApplicationTest {
         Path expected = root.resolve("com/example/DualModel.java").toAbsolutePath();
         assertTrue(Files.exists(expected));
         assertTrue(out.toString().contains(expected.toString()));
+        assertFalse(out.toString().contains("Overwrite:"));
     }
 
     @Test public void processingFailureReturnsOneAndDoesNotLeakPassword() {
@@ -45,6 +46,22 @@ public class ModelConvertorApplicationTest {
         assertEquals(1, app.run(new String[]{"--class-name", "DualModel", "--package", "p", "--stdout"}));
         assertFalse(err.toString().contains("secret"));
         assertFalse(err.toString().contains("oracle.password"));
+    }
+
+    @Test public void interactiveModePreviewsPathAndOverwriteStatusBeforeWriting() throws Exception {
+        Path expected = temporary.getRoot().toPath().resolve("src/main/java/com/example/DualModel.java").toAbsolutePath();
+        Files.createDirectories(expected.getParent());
+        Files.write(expected, "existing".getBytes(StandardCharsets.UTF_8));
+        StringWriter out = new StringWriter();
+        ModelConvertorApplication app = new ModelConvertorApplication(
+                new StringReader("DualModel\ncom.example\nSELECT d.DUMMY FROM dual d\n:end\n"), out,
+                new StringWriter(), temporary.getRoot().toPath(), path -> OracleConfig.load(configFile()),
+                config -> null, (connection, inspection, config) -> Collections.emptyList());
+
+        assertEquals(1, app.run(new String[0]));
+        assertTrue(out.toString().contains(expected.toString()));
+        assertTrue(out.toString().contains("Overwrite: disabled"));
+        assertEquals("existing", new String(Files.readAllBytes(expected), StandardCharsets.UTF_8));
     }
 
     private ModelConvertorApplication application(Path config, ModelConvertorApplication.ConnectionOpener opener, StringReader input) {

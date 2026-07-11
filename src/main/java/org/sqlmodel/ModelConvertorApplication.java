@@ -45,7 +45,8 @@ final class ModelConvertorApplication {
             String className = options.className() == null ? input.prompt("Class name: ", out) : options.className();
             String packageName = options.packageName() == null ? input.prompt("Package name: ", out) : options.packageName();
             new DzModelRenderer().render(packageName, className, java.util.Collections.<ColumnSpec>emptyList());
-            boolean interactiveSql = options.sqlFile() == null && args.length == 0;
+            boolean interactive = args.length == 0;
+            boolean interactiveSql = options.sqlFile() == null && interactive;
             if (interactiveSql) { out.write("Paste SQL; enter :end on its own line to finish.\n"); out.flush(); }
             SqlInspection inspection = SqlInspector.inspect(input.read(options.sqlFile(), interactiveSql));
             OracleConfig config = configs.load(options.config());
@@ -54,7 +55,13 @@ final class ModelConvertorApplication {
                 columns = metadata.read(connection, inspection, config);
             }
             String source = new DzModelRenderer().render(packageName, className, columns);
-            Path path = new SourceOutput(cwd, out).write(source, packageName, className, options.output(), options.overwrite(), options.stdout());
+            SourceOutput output = new SourceOutput(cwd, out);
+            if (interactive && !options.stdout()) {
+                out.write("Output: " + output.path(packageName, className, options.output()) + System.lineSeparator());
+                out.write("Overwrite: " + (options.overwrite() ? "enabled" : "disabled") + System.lineSeparator());
+                out.flush();
+            }
+            Path path = output.write(source, packageName, className, options.output(), options.overwrite(), options.stdout());
             if (path != null) { out.write("Created " + path + System.lineSeparator()); out.flush(); }
             return 0;
         } catch (IllegalArgumentException e) {

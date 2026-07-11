@@ -13,6 +13,11 @@ final class SourceOutput {
 
     SourceOutput(Path cwd, Writer stdout) { this.cwd = cwd; this.stdout = stdout; }
 
+    Path path(String packageName, String className, Path sourceRoot) {
+        Path root = sourceRoot == null ? cwd.resolve("src/main/java") : sourceRoot;
+        return root.resolve(packageName.replace('.', '/')).resolve(className + ".java").toAbsolutePath();
+    }
+
     Path write(String source, String packageName, String className, Path sourceRoot,
                boolean overwrite, boolean toStdout) throws IOException {
         if (toStdout) {
@@ -20,10 +25,9 @@ final class SourceOutput {
             stdout.flush();
             return null;
         }
-        Path root = sourceRoot == null ? cwd.resolve("src/main/java") : sourceRoot;
-        Path directory = root.resolve(packageName.replace('.', '/'));
+        Path file = path(packageName, className, sourceRoot);
+        Path directory = file.getParent();
         Files.createDirectories(directory);
-        Path file = directory.resolve(className + ".java").toAbsolutePath();
         try (Writer writer = overwrite
                 ? Files.newBufferedWriter(file, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
                 : Files.newBufferedWriter(file, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW)) {
