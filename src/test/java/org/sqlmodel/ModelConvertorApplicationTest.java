@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Collections;
 
 import static org.junit.Assert.*;
@@ -38,14 +39,40 @@ public class ModelConvertorApplicationTest {
         assertFalse(out.toString().contains("Overwrite:"));
     }
 
-    @Test public void processingFailureReturnsOneAndDoesNotLeakPassword() {
+    @Test public void databaseFailureReportsCauseAndRedactsPassword() {
         StringWriter err = new StringWriter();
-        ModelConvertorApplication app = new ModelConvertorApplication(new StringReader("SELECT 1 FROM dual"), new StringWriter(), err,
-                temporary.getRoot().toPath(), path -> OracleConfig.load(configFile()), config -> { throw new Exception("oracle.password=secret"); },
+        ModelConvertorApplication app = new ModelConvertorApplication(
+                new StringReader("SELECT 1 FROM dual"), new StringWriter(), err,
+                temporary.getRoot().toPath(), path -> OracleConfig.load(configFile()),
+                config -> { throw new SQLException("login failed for secret", "28000", 1017); },
                 (connection, inspection, config) -> Collections.emptyList());
+
         assertEquals(1, app.run(new String[]{"--class-name", "DualModel", "--package", "p", "--stdout"}));
+        assertTrue(err.toString().contains("Oracle processing failed (code 1017): login failed for ***"));
         assertFalse(err.toString().contains("secret"));
-        assertFalse(err.toString().contains("oracle.password"));
+    }
+
+    @Test public void missingConfigReportsConfigPath() {
+        Path missing = temporary.getRoot().toPath().resolve("missing.properties").toAbsolutePath();
+        StringWriter err = new StringWriter();
+        ModelConvertorApplication app = new ModelConvertorApplication(
+                new StringReader("SELECT 1 FROM dual"), new StringWriter(), err,
+                temporary.getRoot().toPath());
+
+        assertEquals(1, app.run(new String[]{"--class-name", "DualModel", "--package", "p",
+                "--config", missing.toString(), "--stdout"}));
+        assertTrue(err.toString().contains("Oracle config failed: " + missing));
+    }
+
+    @Test public void missingSqlFileReportsSqlPath() {
+        Path missing = temporary.getRoot().toPath().resolve("missing.sql").toAbsolutePath();
+        StringWriter err = new StringWriter();
+        ModelConvertorApplication app = new ModelConvertorApplication(
+                new StringReader(""), new StringWriter(), err, temporary.getRoot().toPath());
+
+        assertEquals(1, app.run(new String[]{"--sql-file", missing.toString(), "--class-name", "DualModel",
+                "--package", "p", "--stdout"}));
+        assertTrue(err.toString().contains("SQL input failed: " + missing));
     }
 
     @Test public void interactiveModePreviewsPathAndOverwriteStatusBeforeWriting() throws Exception {

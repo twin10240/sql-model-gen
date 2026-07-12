@@ -1,17 +1,20 @@
 package org.sqlmodel;
 
+import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.List;
 
 final class ModelConvertorApplication {
-    interface ConfigLoader { OracleConfig load(Path path) throws Exception; }
-    interface ConnectionOpener { Connection open(OracleConfig config) throws Exception; }
-    interface MetadataLoader { List<ColumnSpec> read(Connection connection, SqlInspection inspection, OracleConfig config) throws Exception; }
+    interface ConfigLoader { OracleConfig load(Path path) throws IOException; }
+    interface ConnectionOpener { Connection open(OracleConfig config) throws SQLException; }
+    interface MetadataLoader { List<ColumnSpec> read(Connection connection, SqlInspection inspection,
+                                                      OracleConfig config) throws SQLException; }
 
     private final SqlInput input;
     private final Writer out;
@@ -62,11 +65,31 @@ final class ModelConvertorApplication {
             new DzModelRenderer().render(packageName, className, java.util.Collections.<ColumnSpec>emptyList());
             boolean interactiveSql = options.sqlFile() == null && terminalInput;
             if (interactiveSql) { out.write("Paste SQL; enter :end on its own line to finish.\n"); out.flush(); }
-            SqlInspection inspection = SqlInspector.inspect(input.read(options.sqlFile(), interactiveSql));
-            OracleConfig config = configs.load(options.config());
+            SqlInspection inspection;
+            try {
+                inspection = SqlInspector.inspect(input.read(options.sqlFile(), interactiveSql));
+            } catch (IOException e) {
+                Path path = options.sqlFile();
+                error("SQL input failed: " + (path == null ? "standard input" : path.toAbsolutePath())
+                        + ": " + detail(e));
+                return 1;
+            }
+            Path configPath = options.config() == null ? OracleConfig.defaultPath() : options.config().toAbsolutePath();
+            OracleConfig config;
+            try {
+                config = configs.load(options.config());
+            } catch (IOException e) {
+                error("Oracle config failed: " + configPath + ": " + detail(e));
+                return 1;
+            }
             List<ColumnSpec> columns;
             try (Connection connection = connections.open(config)) {
                 columns = metadata.read(connection, inspection, config);
+            } catch (SQLException e) {
+                String message = detail(e);
+                if (!config.password().isEmpty()) message = message.replace(config.password(), "***");
+                error("Oracle processing failed (code " + e.getErrorCode() + "): " + message);
+                return 1;
             }
             String source = new DzModelRenderer().render(packageName, className, columns);
             SourceOutput output = new SourceOutput(cwd, out);
@@ -92,6 +115,11 @@ final class ModelConvertorApplication {
 
     private void error(String message) {
         try { err.write("Error: " + message + System.lineSeparator()); err.flush(); } catch (Exception ignored) { }
+    }
+
+    private static String detail(Exception error) {
+        String message = error.getMessage();
+        return message == null || message.trim().isEmpty() ? error.getClass().getSimpleName() : message;
     }
 
     static String usage() {
