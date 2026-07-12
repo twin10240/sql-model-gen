@@ -199,7 +199,7 @@ Claude Code에서 스킬을 명시적으로 호출할 수 있습니다.
 C:\work\hr-system\src\main\java\com\company\hr\model\EmployeeModel.java
 ```
 
-처음에는 파일을 생성하지 말고 결과만 확인하는 것을 권장합니다.
+처음에는 파일을 생성하지 말고 결과만 확인하는 것을 권장합니다. `--stdout`도 유효한 Oracle 설정과 연결이 필요하며, 파일 쓰기만 생략합니다.
 
 ```text
 /modelconvertor employee.sql로 EmployeeModel을 만들되 파일은 쓰지 말고 결과만 보여줘. 패키지는 com.company.hr.model이야.
@@ -213,7 +213,7 @@ C:\work\hr-system\src\main\java\com\company\hr\model\EmployeeModel.java
 2. `%USERPROFILE%\.claude\skills\modelconvertor\SKILL.md`가 존재합니다.
 3. 대상 Java 프로젝트에서 새 Claude Code 세션을 시작합니다.
 4. `/modelconvertor`가 스킬로 인식됩니다.
-5. 실제 Oracle 연결 전에 `--stdout` 요청으로 명령 구성과 생성 결과를 확인합니다.
+5. 유효한 Oracle 설정과 연결을 준비한 뒤 `--stdout` 요청으로 파일을 쓰기 전에 생성 결과를 확인합니다.
 6. 실제 Oracle SELECT로 모델 생성을 확인합니다.
 
 ## 8. 업데이트
@@ -232,6 +232,34 @@ mvn clean package
 - `C:\tools\modelconvertor\modelconvertor.cmd`
 - `C:\tools\modelconvertor\modelconvertor.jar`
 - `%USERPROFILE%\.claude\skills\modelconvertor\SKILL.md`
+
+다음 예시는 현재 설치 파일을 시간별 백업 폴더에 복사한 후 새 CMD, JAR 및 전역 스킬을 배치합니다. 경로와 백업 내용을 확인한 뒤 실행하세요.
+
+```powershell
+$repo = 'C:\study\modelconvertor'
+$installDir = 'C:\tools\modelconvertor'
+$globalSkill = Join-Path $env:USERPROFILE '.claude\skills\modelconvertor'
+$backupDir = Join-Path $env:USERPROFILE ('.modelconvertor-backup\' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+
+$updateSources = @(
+    "$repo\modelconvertor.cmd",
+    "$repo\target\modelconvertor.jar",
+    "$repo\.claude\skills\modelconvertor\SKILL.md"
+)
+$missing = $updateSources | Where-Object { -not (Test-Path -LiteralPath $_) }
+if ($missing) {
+    throw "Missing update file: $($missing -join ', ')"
+}
+
+New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+Copy-Item -LiteralPath "$installDir\modelconvertor.cmd" -Destination $backupDir
+Copy-Item -LiteralPath "$installDir\modelconvertor.jar" -Destination $backupDir
+Copy-Item -LiteralPath "$globalSkill\SKILL.md" -Destination $backupDir
+
+Copy-Item -LiteralPath "$repo\modelconvertor.cmd" -Destination $installDir -Force
+Copy-Item -LiteralPath "$repo\target\modelconvertor.jar" -Destination $installDir -Force
+Copy-Item -LiteralPath "$repo\.claude\skills\modelconvertor\SKILL.md" -Destination $globalSkill -Force
+```
 
 `ojdbc8.jar`는 JDBC 드라이버 버전을 변경할 때만 교체합니다. 실행 중인 Claude Code 세션이 있다면 스킬 업데이트 후 새 세션을 시작하세요.
 
