@@ -92,6 +92,12 @@ oracle.url=jdbc:oracle:thin:@DB_HOST:1521:SID
 
 비밀번호는 평문으로 저장되므로 설정 파일을 Git에 추가하거나 공유하지 마세요. 다른 설정 파일을 사용하려면 `--config <path>`를 지정합니다.
 
+## Codex·Claude Code 스킬 사용
+
+스킬을 사용하면 명령 옵션을 직접 조합하지 않고 SQL 본문이나 `.sql`, `.txt` 등 UTF-8 텍스트 파일 경로를 자연어로 전달할 수 있습니다. 클래스명이나 패키지명이 빠져 있으면 스킬이 누락된 값만 질문한 뒤 ModelConvertor를 실행합니다.
+
+자세한 입력·출력 흐름과 오류 처리는 [Codex·Claude Code 스킬 사용 가이드](docs/skill-usage-guide.md)를 참고하세요.
+
 ## 사용법
 
 ```text
@@ -214,10 +220,10 @@ C:\tools\modelconvertor\modelconvertor.cmd `
 | 종료 코드 | 상황 |
 |---|---|
 | `0` | 정상 처리 또는 `--help` 출력 |
-| `1` | 설정·SQL 파일 I/O, Oracle 연결·메타데이터, 출력 파일 충돌 등 처리 실패 |
-| `2` | 잘못된 옵션, SQL, 클래스명 또는 패키지명 |
+| `1` | SQL 입력 I/O, 설정 로딩과 필수 키 누락, Oracle 연결·JDBC 처리, Oracle 실행 중 SQL 실패, 출력 파일 충돌 등 처리 실패 |
+| `2` | 잘못된 옵션, 클래스명·패키지명, SQL 사전 검증, 중복 결과 라벨·Java 필드명, 파이프 입력 필수 옵션 누락 등 호출·입력 검증 실패 |
 
-설정 파일 또는 SQL 파일을 읽지 못하면 해당 경로와 원인을 출력합니다. Oracle 처리 실패 시 Oracle 오류 코드와 원인을 출력하되, 설정된 비밀번호가 오류 메시지에 포함되어도 `***`로 마스킹합니다.
+SQL 사전 검증 실패는 `2`, Oracle/JDBC 처리 중 SQL 실패는 `1`입니다. 설정 파일의 필수 키 누락은 설정 로딩 실패이므로 `1`입니다. 설정 파일 또는 SQL 파일을 읽지 못하면 해당 경로와 원인을 출력합니다. Oracle 처리 실패 시 Oracle 오류 코드와 원인을 출력하되, 설정된 비밀번호가 오류 메시지에 포함되어도 `***`로 마스킹합니다.
 
 ## SQL 지원 범위와 제한사항
 
@@ -235,5 +241,6 @@ C:\tools\modelconvertor\modelconvertor.cmd `
 
 ## 상세 문서
 
+- [Codex·Claude Code 스킬 사용 가이드](docs/skill-usage-guide.md)
 - [프로젝트 처리 흐름](docs/modelconvertor-flow.md)
 - [대화형 재입력 추후 검토](docs/future-improvements.md)
