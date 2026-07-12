@@ -8,6 +8,10 @@
     Run this from inside a clone of the repository; the lightweight text files
     (modelconvertor.cmd, SKILL.md) come from the clone, the heavy JAR from the Release.
 
+    All preconditions are checked before any file/PATH change, and the JAR is
+    downloaded and validated in a temporary file before replacing the install target,
+    so a failed run never corrupts an existing install.
+
 .PARAMETER Repo
     GitHub owner/repo that hosts the Release asset.
 
@@ -35,7 +39,9 @@ param(
 $ErrorActionPreference = 'Stop'
 $repoRoot = $PSScriptRoot
 
-# --- source text files from the clone -----------------------------------------
+# === Phase 1: preconditions (no changes made yet) =============================
+
+# Source text files from the clone.
 $cmdSource   = Join-Path $repoRoot 'modelconvertor.cmd'
 $skillSource = Join-Path $repoRoot '.claude\skills\modelconvertor\SKILL.md'
 foreach ($f in @($cmdSource, $skillSource)) {
@@ -44,59 +50,69 @@ foreach ($f in @($cmdSource, $skillSource)) {
     }
 }
 
-# --- preflight: Java runtime --------------------------------------------------
+# Java is required to run and to validate the downloaded JAR.
 if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
-    Write-Warning 'Java runtime not found on PATH. Install Java 8+ to run modelconvertor.'
+    throw 'Java runtime not found on PATH. Install Java 8+ and re-run install.ps1.'
 }
 
-# --- 1. install dir + CLI files -----------------------------------------------
-$jarTarget = Join-Path $InstallDir 'modelconvertor.jar'
-$cmdTarget = Join-Path $InstallDir 'modelconvertor.cmd'
+# Resolve targets and check every conflict up front, before any mutation.
+$jarTarget   = Join-Path $InstallDir 'modelconvertor.jar'
+$cmdTarget   = Join-Path $InstallDir 'modelconvertor.cmd'
+$skillDir    = Join-Path $env:USERPROFILE '.claude\skills\modelconvertor'
+$skillTarget = Join-Path $skillDir 'SKILL.md'
 if (-not $Force) {
-    foreach ($t in @($jarTarget, $cmdTarget)) {
-        if (Test-Path -LiteralPath $t) {
-            throw "Install target already exists: $t (use -Force to update)"
-        }
+    $conflicts = @($jarTarget, $cmdTarget, $skillTarget) | Where-Object { Test-Path -LiteralPath $_ }
+    if ($conflicts) {
+        throw "Already installed (use -Force to update): $($conflicts -join ', ')"
     }
 }
-New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 
-# --- download JAR from the Release --------------------------------------------
+# === Phase 2: download to a temp file and validate ===========================
+
 if ($Version -eq 'latest') {
     $jarUrl = "https://github.com/$Repo/releases/latest/download/modelconvertor.jar"
 } else {
     $jarUrl = "https://github.com/$Repo/releases/download/$Version/modelconvertor.jar"
 }
-Write-Host "Downloading $jarUrl"
+
+$tempJar = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "modelconvertor-$([guid]::NewGuid()).jar")
 try {
-    Invoke-WebRequest -Uri $jarUrl -OutFile $jarTarget -UseBasicParsing
-} catch {
-    throw ("Download failed: {0}. For a private repo, run: " -f $_.Exception.Message) +
-          "gh release download $Version --repo $Repo --pattern modelconvertor.jar --dir '$InstallDir'"
-}
-if (-not (Test-Path -LiteralPath $jarTarget) -or (Get-Item -LiteralPath $jarTarget).Length -eq 0) {
-    throw "Downloaded JAR is missing or empty: $jarTarget"
-}
-Copy-Item -LiteralPath $cmdSource -Destination $cmdTarget -Force
+    Write-Host "Downloading $jarUrl"
+    try {
+        Invoke-WebRequest -Uri $jarUrl -OutFile $tempJar -UseBasicParsing
+    } catch {
+        throw ("Download failed: {0}. For a private repo: " -f $_.Exception.Message) +
+              "gh release download $Version --repo $Repo --pattern modelconvertor.jar --dir '$InstallDir'"
+    }
+    if (-not (Test-Path -LiteralPath $tempJar) -or (Get-Item -LiteralPath $tempJar).Length -eq 0) {
+        throw "Downloaded JAR is missing or empty (check the Release asset name is modelconvertor.jar)."
+    }
+    # Prove it is a runnable JAR, not an HTML error page or a corrupt file.
+    & java -jar $tempJar --help > $null 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "Downloaded file is not a runnable modelconvertor JAR (java -jar --help exit $LASTEXITCODE)."
+    }
 
-# --- 2. user PATH (idempotent) ------------------------------------------------
-$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-$entries  = @($userPath -split ';' | Where-Object { $_ })
-if ($entries -notcontains $InstallDir) {
-    [Environment]::SetEnvironmentVariable('Path', (($entries + $InstallDir) -join ';'), 'User')
-    Write-Host "Added to user PATH: $InstallDir (open a new terminal for it to take effect)"
+    # === Phase 3: apply changes ==============================================
+
+    New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
+    Move-Item -LiteralPath $tempJar -Destination $jarTarget -Force
+    Copy-Item -LiteralPath $cmdSource -Destination $cmdTarget -Force
+
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $entries  = @($userPath -split ';' | Where-Object { $_ })
+    if ($entries -notcontains $InstallDir) {
+        [Environment]::SetEnvironmentVariable('Path', (($entries + $InstallDir) -join ';'), 'User')
+        Write-Host "Added to user PATH: $InstallDir (open a new terminal for it to take effect)"
+    }
+
+    New-Item -ItemType Directory -Force -Path $skillDir | Out-Null
+    Copy-Item -LiteralPath $skillSource -Destination $skillTarget -Force
+} finally {
+    if (Test-Path -LiteralPath $tempJar) { Remove-Item -LiteralPath $tempJar -Force }
 }
 
-# --- 3. global Claude Code skill ----------------------------------------------
-$skillDir    = Join-Path $env:USERPROFILE '.claude\skills\modelconvertor'
-$skillTarget = Join-Path $skillDir 'SKILL.md'
-if ((Test-Path -LiteralPath $skillTarget) -and -not $Force) {
-    throw "Global skill already exists: $skillTarget (use -Force to update)"
-}
-New-Item -ItemType Directory -Force -Path $skillDir | Out-Null
-Copy-Item -LiteralPath $skillSource -Destination $skillTarget -Force
-
-# --- 4. Oracle config check (do not create; it holds a plaintext password) -----
+# --- Oracle config check (do not create; it holds a plaintext password) --------
 $oracleProps = Join-Path $env:USERPROFILE '.modelconvertor\oracle.properties'
 if (-not (Test-Path -LiteralPath $oracleProps)) {
     Write-Warning "Oracle config not found: $oracleProps"
@@ -105,4 +121,4 @@ if (-not (Test-Path -LiteralPath $oracleProps)) {
 
 Write-Host ''
 Write-Host 'ModelConvertor installed. Restart Claude Code so the global skill is picked up.'
-Write-Host "Verify with: modelconvertor.cmd --help"
+Write-Host 'Verify with: modelconvertor.cmd --help'
