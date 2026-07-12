@@ -8,31 +8,42 @@
     Run this from inside a clone of the repository; the lightweight text files
     (modelconvertor.cmd, SKILL.md) come from the clone, the heavy JAR from the Release.
 
-    All preconditions are checked before any file/PATH change, and the JAR is
-    downloaded and validated in a temporary file before replacing the install target,
-    so a failed run never corrupts an existing install.
+    Preconditions (source files, Java, install/skill conflicts) are checked before
+    any change. The JAR is downloaded and structurally validated in a temporary file
+    before it replaces the install target, so a failed download or validation never
+    touches an existing install. The downloaded JAR is NOT executed during install.
+
+    Note: if a later step (CMD copy, PATH, skill copy) fails, an update may be left
+    partially applied. Back up an existing install before updating with -Force.
 
 .PARAMETER Repo
     GitHub owner/repo that hosts the Release asset.
 
 .PARAMETER Version
-    Release tag to install, or 'latest' (default).
+    Release tag to install (e.g. v1.0.0), or 'latest' (default). Pin a tag for
+    reproducible installs.
 
 .PARAMETER InstallDir
     CLI install folder (added to PATH).
+
+.PARAMETER UseGh
+    Download the asset with an authenticated 'gh release download' instead of an
+    anonymous HTTP request. Required for private repositories (run 'gh auth login' first).
 
 .PARAMETER Force
     Overwrite an existing install / global skill (use when updating).
 
 .EXAMPLE
     .\install.ps1
-    .\install.ps1 -Version v1.0.0 -Force
+    .\install.ps1 -Version v1.0.0
+    .\install.ps1 -UseGh -Force
 #>
 [CmdletBinding()]
 param(
     [string]$Repo = 'twin10240/sql-model-gen',
     [string]$Version = 'latest',
     [string]$InstallDir = 'C:\tools\modelconvertor',
+    [switch]$UseGh,
     [switch]$Force
 )
 
@@ -50,9 +61,12 @@ foreach ($f in @($cmdSource, $skillSource)) {
     }
 }
 
-# Java is required to run and to validate the downloaded JAR.
+# Java is required to run modelconvertor.
 if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
     throw 'Java runtime not found on PATH. Install Java 8+ and re-run install.ps1.'
+}
+if ($UseGh -and -not (Get-Command gh -ErrorAction SilentlyContinue)) {
+    throw 'gh CLI not found but -UseGh was requested. Install GitHub CLI and run gh auth login.'
 }
 
 # Resolve targets and check every conflict up front, before any mutation.
@@ -67,30 +81,51 @@ if (-not $Force) {
     }
 }
 
-# === Phase 2: download to a temp file and validate ===========================
-
-if ($Version -eq 'latest') {
-    $jarUrl = "https://github.com/$Repo/releases/latest/download/modelconvertor.jar"
-} else {
-    $jarUrl = "https://github.com/$Repo/releases/download/$Version/modelconvertor.jar"
-}
+# === Phase 2: download to a temp file and validate (without executing it) =====
 
 $tempJar = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "modelconvertor-$([guid]::NewGuid()).jar")
 try {
-    Write-Host "Downloading $jarUrl"
-    try {
-        Invoke-WebRequest -Uri $jarUrl -OutFile $tempJar -UseBasicParsing
-    } catch {
-        throw ("Download failed: {0}. For a private repo: " -f $_.Exception.Message) +
-              "gh release download $Version --repo $Repo --pattern modelconvertor.jar --dir '$InstallDir'"
+    Write-Host "Downloading modelconvertor.jar ($Version) from $Repo"
+    if ($UseGh) {
+        $ghArgs = @('release', 'download')
+        if ($Version -ne 'latest') { $ghArgs += $Version }
+        $ghArgs += @('--repo', $Repo, '--pattern', 'modelconvertor.jar', '--output', $tempJar, '--clobber')
+        & gh @ghArgs
+        if ($LASTEXITCODE -ne 0) { throw "gh release download failed (exit $LASTEXITCODE)." }
+    } else {
+        if ($Version -eq 'latest') {
+            $jarUrl = "https://github.com/$Repo/releases/latest/download/modelconvertor.jar"
+        } else {
+            $jarUrl = "https://github.com/$Repo/releases/download/$Version/modelconvertor.jar"
+        }
+        try {
+            Invoke-WebRequest -Uri $jarUrl -OutFile $tempJar -UseBasicParsing
+        } catch {
+            throw ("Download failed: {0}. For a private repo use: .\install.ps1 -UseGh" -f $_.Exception.Message)
+        }
     }
     if (-not (Test-Path -LiteralPath $tempJar) -or (Get-Item -LiteralPath $tempJar).Length -eq 0) {
         throw "Downloaded JAR is missing or empty (check the Release asset name is modelconvertor.jar)."
     }
-    # Prove it is a runnable JAR, not an HTML error page or a corrupt file.
-    & java -jar $tempJar --help > $null 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        throw "Downloaded file is not a runnable modelconvertor JAR (java -jar --help exit $LASTEXITCODE)."
+
+    # Validate JAR structure without running it: it must be a valid zip that
+    # contains the manifest and the expected entry class. This rejects HTML error
+    # pages and corrupt files without executing untrusted code.
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    try {
+        $zip = [System.IO.Compression.ZipFile]::OpenRead($tempJar)
+        try {
+            $names = @($zip.Entries | ForEach-Object { $_.FullName })
+        } finally {
+            $zip.Dispose()
+        }
+    } catch {
+        throw "Downloaded file is not a valid JAR (zip open failed): $($_.Exception.Message)"
+    }
+    $required = @('META-INF/MANIFEST.MF', 'org/sqlmodel/Main.class')
+    $missing = $required | Where-Object { $names -notcontains $_ }
+    if ($missing) {
+        throw "Downloaded JAR is not modelconvertor (missing: $($missing -join ', '))."
     }
 
     # === Phase 3: apply changes ==============================================
