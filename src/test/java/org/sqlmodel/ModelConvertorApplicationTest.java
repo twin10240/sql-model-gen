@@ -64,6 +64,22 @@ public class ModelConvertorApplicationTest {
         assertTrue(err.toString().contains("Oracle config failed: " + missing));
     }
 
+    @Test public void invalidConfigReportsConfigPathAndMissingKeys() throws Exception {
+        Path invalid = temporary.newFile("invalid.properties").toPath().toAbsolutePath();
+        Files.write(invalid, "oracle.url=jdbc:test\n".getBytes(StandardCharsets.UTF_8));
+        StringWriter err = new StringWriter();
+        ModelConvertorApplication app = new ModelConvertorApplication(
+                new StringReader("SELECT 1 FROM dual"), new StringWriter(), err,
+                temporary.getRoot().toPath());
+
+        assertEquals(1, app.run(new String[]{"--class-name", "DualModel", "--package", "p",
+                "--config", invalid.toString(), "--stdout"}));
+        assertTrue(err.toString().contains("Oracle config failed: " + invalid));
+        assertTrue(err.toString().contains("oracle.username"));
+        assertTrue(err.toString().contains("oracle.password"));
+        assertTrue(err.toString().contains("oracle.schema"));
+    }
+
     @Test public void missingSqlFileReportsSqlPath() {
         Path missing = temporary.getRoot().toPath().resolve("missing.sql").toAbsolutePath();
         StringWriter err = new StringWriter();

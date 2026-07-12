@@ -78,7 +78,7 @@ final class ModelConvertorApplication {
             OracleConfig config;
             try {
                 config = configs.load(options.config());
-            } catch (IOException e) {
+            } catch (IOException | IllegalArgumentException e) {
                 error("Oracle config failed: " + configPath + ": " + detail(e));
                 return 1;
             }
