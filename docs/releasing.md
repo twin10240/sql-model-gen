@@ -16,6 +16,14 @@ gh release create v1.0.0 target\modelconvertor.jar --title "ModelConvertor v1.0.
 
 `gh`가 없으면 GitHub 웹 Releases에서 태그를 만들고 `target\modelconvertor.jar`를 첨부합니다.
 
+선택: 변조 확인용으로 SHA-256 값을 릴리스 노트에 남기거나 `.sha256` 파일을 함께 첨부할 수 있습니다.
+
+```powershell
+(Get-FileHash target\modelconvertor.jar -Algorithm SHA256).Hash
+```
+
+설치 측에서는 `install.ps1`이 JAR을 실행하지 않고 zip 구조와 `org/sqlmodel/Main.class` 존재로 무결성을 검사하며, 재현 가능한 설치가 필요하면 `-Version <tag>`로 버전을 고정합니다.
+
 6. 설치 URL 재검증:
 
 ```powershell

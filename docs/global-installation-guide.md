@@ -58,11 +58,19 @@ Set-Location C:\tools\modelconvertor-repo
 
 ### 비공개 저장소인 경우
 
-Release 에셋에 인증이 필요하면 `install.ps1`의 다운로드가 실패합니다. 해당 PC에서 `gh` CLI로 로그인한 뒤 JAR을 직접 받고 다시 실행하세요.
+Release 에셋에 인증이 필요하면 익명 HTTP 다운로드가 실패합니다. `gh` CLI로 로그인한 뒤 `-UseGh`로 실행하면 `install.ps1`이 인증된 `gh release download`로 에셋을 받아 그대로 설치합니다.
 
 ```powershell
 gh auth login
-gh release download --repo twin10240/sql-model-gen --pattern modelconvertor.jar --dir C:\tools\modelconvertor
+.\install.ps1 -UseGh
+```
+
+### 버전 고정
+
+기본값은 최신 Release(`latest`)입니다. 재현 가능한 설치가 필요하면 태그를 고정하세요.
+
+```powershell
+.\install.ps1 -Version v1.0.0
 ```
 
 ## 수동 설치 (fallback)
