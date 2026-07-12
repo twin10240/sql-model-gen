@@ -39,6 +39,14 @@ Set-Location C:\tools\modelconvertor-repo
 
 설치 후 **새 Claude Code 세션**을 시작하면 스킬이 인식됩니다.
 
+### Claude Code 에이전트로 설치하기
+
+직접 실행하는 대신 Claude Code에 설치를 맡길 수 있습니다. 저장소 루트의 `CLAUDE.md`에 설치 지시가 있어, clone한 폴더에서 Claude Code를 시작하면 "설치해줘"만으로도 `install.ps1` 실행까지 진행합니다. 저장소를 아직 clone하지 않았다면 URL과 함께 명시적으로 요청하세요.
+
+> 이 저장소 clone하고 install.ps1로 전역 설치해줘: https://github.com/twin10240/sql-model-gen
+
+에이전트가 clone → `.\install.ps1`까지 진행합니다. 그 뒤 `oracle.properties` 작성과 새 세션 시작은 직접 해야 하며, 비밀번호는 채팅에 붙여 넣지 마세요.
+
 ### install.ps1이 하는 일
 
 - 최신 Release에서 `modelconvertor.jar`를 내려받아 CLI 폴더(`C:\tools\modelconvertor`)에 둡니다.
