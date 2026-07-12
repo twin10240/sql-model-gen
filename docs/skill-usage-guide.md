@@ -115,12 +115,12 @@ SQL 오류는 발생 단계에 따라 종료 코드가 다릅니다.
 
 스킬이 CLI를 호출할 수 있도록 다음 준비가 필요합니다.
 
-- `modelconvertor.jar`, `modelconvertor.cmd`, `ojdbc8.jar` 설치
+- `modelconvertor.jar`, `modelconvertor.cmd` 설치(`ojdbc8` 드라이버는 JAR에 포함)
 - `%USERPROFILE%\.modelconvertor\oracle.properties` 또는 별도 Oracle 설정 파일
 - 가능한 경우 조회 전용 Oracle 계정
 - 모델을 생성할 Java 프로젝트를 현재 작업 디렉터리로 사용
 
-설정 파일이나 JDBC 드라이버가 없으면 스킬은 임의로 접속 정보를 만들지 않고 필요한 파일과 경로를 안내해야 합니다. 비밀번호를 채팅이나 명령 인자로 요청하지 않습니다.
+설정 파일이 없으면 스킬은 임의로 접속 정보를 만들지 않고 필요한 파일과 경로를 안내해야 합니다. 비밀번호를 채팅이나 명령 인자로 요청하지 않습니다.
 
 ## 요청 예시
 

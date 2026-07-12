@@ -1,167 +1,99 @@
 # ModelConvertor 전역 설치 가이드
 
-이 가이드는 Windows에서 ModelConvertor CLI와 Claude Code 스킬을 전역으로 설치해 여러 Java 프로젝트에서 사용하는 절차를 설명합니다.
+Windows에서 ModelConvertor CLI와 Claude Code 스킬을 전역으로 설치해 여러 Java 프로젝트에서 사용하는 절차입니다. 실행 JAR에는 Oracle JDBC 드라이버(`ojdbc8`)가 포함되어 있어 별도 드라이버 파일이 필요 없습니다.
 
 ## 준비 사항
 
+- Java 8 이상(실행 런타임)
 - Git
-- Java 8 이상
-- Maven 3.x
-- Oracle JDBC 드라이버 `ojdbc8.jar`
 - Claude Code
 - [ModelConvertor Git 저장소](https://github.com/twin10240/sql-model-gen)
 
-Oracle JDBC 드라이버는 저장소와 애플리케이션 JAR에 포함되지 않습니다. 사용 권한이 있는 드라이버를 직접 준비하세요.
+실행 JAR은 소스 저장소에 커밋하지 않고 GitHub Release 에셋으로 배포합니다. 저장소를 직접 빌드할 때만 Maven 3.x가 추가로 필요합니다(아래 "직접 빌드" 참고).
 
 ## 설치 구조
-
-이 가이드에서는 다음 위치를 기본값으로 사용합니다.
 
 ```text
 C:\tools\modelconvertor\
 ├─ modelconvertor.cmd
-├─ modelconvertor.jar
-└─ ojdbc8.jar
+└─ modelconvertor.jar        (ojdbc8 포함, Release에서 다운로드)
 
 %USERPROFILE%\.claude\skills\modelconvertor\
-└─ SKILL.md
+└─ SKILL.md                  (전역 스킬)
 
 %USERPROFILE%\.modelconvertor\
-└─ oracle.properties
+└─ oracle.properties         (접속 정보, 직접 작성)
 ```
 
-소스 저장소, CLI 설치 폴더, 전역 스킬 및 실제 Java 프로젝트는 서로 독립된 위치입니다.
+CLI 설치 폴더, 전역 스킬, Oracle 설정, 소스 저장소는 서로 독립적입니다.
 
-## 1. 저장소 준비와 JAR 빌드
+## 빠른 설치
 
-처음 설치한다면 저장소를 clone하고 JAR를 빌드합니다.
+저장소를 clone한 뒤 포함된 `install.ps1`을 실행합니다.
 
 ```powershell
-$repo = 'C:\study\modelconvertor'
-git clone https://github.com/twin10240/sql-model-gen.git $repo
-Set-Location $repo
+git clone https://github.com/twin10240/sql-model-gen.git C:\tools\modelconvertor-repo
+Set-Location C:\tools\modelconvertor-repo
+.\install.ps1
+```
+
+설치 후 **새 Claude Code 세션**을 시작하면 스킬이 인식됩니다.
+
+### install.ps1이 하는 일
+
+- 최신 Release에서 `modelconvertor.jar`를 내려받아 CLI 폴더(`C:\tools\modelconvertor`)에 둡니다.
+- 저장소의 `modelconvertor.cmd`를 같은 폴더에 복사합니다.
+- CLI 폴더를 사용자 `PATH`에 추가합니다(이미 있으면 건너뜀).
+- 저장소의 `SKILL.md`를 전역 스킬 폴더로 복사합니다.
+- `oracle.properties`가 없으면 경고합니다(비밀번호가 평문이므로 직접 만들어야 합니다).
+- Java 런타임이 PATH에 없으면 경고합니다.
+
+기존 설치나 전역 스킬이 있으면 확인 없이 덮어쓰지 않습니다. 갱신하려면 `-Force`를 사용합니다.
+
+```powershell
+.\install.ps1 -Force
+```
+
+주요 매개변수: `-Repo <owner/repo>`, `-Version <tag|latest>`, `-InstallDir <path>`, `-Force`.
+
+### 비공개 저장소인 경우
+
+Release 에셋에 인증이 필요하면 `install.ps1`의 다운로드가 실패합니다. 해당 PC에서 `gh` CLI로 로그인한 뒤 JAR을 직접 받고 다시 실행하세요.
+
+```powershell
+gh auth login
+gh release download --repo twin10240/sql-model-gen --pattern modelconvertor.jar --dir C:\tools\modelconvertor
+```
+
+## 수동 설치 (fallback)
+
+`install.ps1`을 쓰지 않을 때의 최소 절차입니다.
+
+1. 최신 Release에서 `modelconvertor.jar`를 받아 `C:\tools\modelconvertor`에 둔다.
+   - 공개: `https://github.com/twin10240/sql-model-gen/releases/latest/download/modelconvertor.jar`
+2. 저장소의 `modelconvertor.cmd`를 같은 폴더에 복사한다.
+3. `C:\tools\modelconvertor`를 사용자 `PATH`에 추가한다.
+4. 저장소의 `.claude\skills\modelconvertor\SKILL.md`를 `%USERPROFILE%\.claude\skills\modelconvertor\`로 복사한다.
+5. `%USERPROFILE%\.modelconvertor\oracle.properties`를 작성한다(아래 참고).
+
+## 직접 빌드 (선택)
+
+Release 대신 소스에서 JAR을 만들려면 Maven이 필요합니다.
+
+```powershell
+Set-Location C:\tools\modelconvertor-repo
 mvn clean package
 ```
 
-이미 clone한 저장소가 있다면 fast-forward로 갱신한 후 다시 빌드합니다. 커밋하지 않은 변경이 있다면 먼저 보존하세요.
+`target\modelconvertor.jar`(ojdbc8 포함)가 생성됩니다. 이후 절차는 수동 설치 2~5와 같습니다.
 
-```powershell
-$repo = 'C:\study\modelconvertor'
-Set-Location $repo
-git pull --ff-only
-mvn clean package
-```
+## Oracle 접속 설정
 
-빌드가 끝나면 다음 파일이 있어야 합니다.
-
-```text
-C:\study\modelconvertor\target\modelconvertor.jar
-```
-
-## 2. CLI와 JDBC 드라이버 설치
-
-설치에 사용할 경로를 지정하고 원본 파일이 모두 있는지 확인합니다. `$ojdbc`는 실제 드라이버 위치로 변경하세요.
-
-```powershell
-$repo = 'C:\study\modelconvertor'
-$installDir = 'C:\tools\modelconvertor'
-$ojdbc = 'C:\path\to\ojdbc8.jar'
-
-$sources = @(
-    "$repo\modelconvertor.cmd",
-    "$repo\target\modelconvertor.jar",
-    $ojdbc
-)
-$missing = $sources | Where-Object { -not (Test-Path -LiteralPath $_) }
-if ($missing) {
-    throw "Missing installation file: $($missing -join ', ')"
-}
-```
-
-대상 파일이 이미 있다면 설치를 중단하고 백업 또는 업데이트 여부를 먼저 결정합니다.
-
-```powershell
-$targets = @(
-    "$installDir\modelconvertor.cmd",
-    "$installDir\modelconvertor.jar",
-    "$installDir\ojdbc8.jar"
-)
-$existing = $targets | Where-Object { Test-Path -LiteralPath $_ }
-if ($existing) {
-    throw "Installation target already exists: $($existing -join ', ')"
-}
-```
-
-대상 파일이 없다는 것을 확인한 후 세 파일을 같은 폴더에 설치합니다.
-
-```powershell
-New-Item -ItemType Directory -Force -Path $installDir | Out-Null
-Copy-Item -LiteralPath "$repo\modelconvertor.cmd" -Destination $installDir
-Copy-Item -LiteralPath "$repo\target\modelconvertor.jar" -Destination $installDir
-Copy-Item -LiteralPath $ojdbc -Destination "$installDir\ojdbc8.jar"
-```
-
-`modelconvertor.cmd`는 자신의 폴더에서 `modelconvertor.jar`와 `ojdbc8.jar`를 찾습니다. 대상 Java 프로젝트의 Maven 의존성이나 `lib` 폴더에 있는 드라이버는 자동으로 사용되지 않습니다. 다른 프로젝트에 드라이버가 이미 있다면 사용 권한과 버전을 확인한 뒤 위 `$ojdbc` 경로로 지정해 CLI 폴더에 복사하세요.
-
-## 3. 사용자 PATH 등록
-
-현재 사용자 PATH를 읽고 CLI 설치 폴더가 없을 때만 추가합니다.
-
-```powershell
-$installDir = 'C:\tools\modelconvertor'
-$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-$entries = @($userPath -split ';' | Where-Object { $_ })
-if ($entries -notcontains $installDir) {
-    [Environment]::SetEnvironmentVariable(
-        'Path',
-        (($entries + $installDir) -join ';'),
-        'User'
-    )
-}
-```
-
-기존 PATH 전체를 새 값으로 교체하지 마세요. 등록 후 새 터미널을 열고 어느 디렉터리에서든 CLI가 실행되는지 확인합니다.
-
-```powershell
-modelconvertor.cmd --help
-```
-
-## 4. Claude Code 전역 스킬 설치
-
-저장소에 포함된 스킬을 사용자 전역 스킬 폴더로 복사합니다. 기존 전역 스킬이 있다면 확인 없이 덮어쓰지 않습니다.
-
-```powershell
-$repo = 'C:\study\modelconvertor'
-$globalSkill = Join-Path $env:USERPROFILE '.claude\skills\modelconvertor'
-
-if (Test-Path -LiteralPath $globalSkill) {
-    throw "Global skill already exists: $globalSkill"
-}
-New-Item -ItemType Directory -Force -Path $globalSkill | Out-Null
-Copy-Item `
-    -LiteralPath "$repo\.claude\skills\modelconvertor\SKILL.md" `
-    -Destination $globalSkill
-```
-
-전역 스킬 위치는 다음과 같습니다.
-
-```text
-%USERPROFILE%\.claude\skills\modelconvertor\SKILL.md
-```
-
-설치 후 새 Claude Code 세션을 시작하세요. 저장소의 프로젝트 스킬과 전역으로 복사한 스킬은 자동으로 동기화되지 않습니다.
-
-현재 저장소에는 Claude Code 스킬만 제공됩니다. Codex 전역 설치는 Codex용 스킬 파일이 추가된 이후 별도로 안내합니다.
-
-## 5. Oracle 접속 설정
-
-기본 설정 파일은 다음 위치에 둡니다.
+기본 설정 파일 위치입니다.
 
 ```text
 %USERPROFILE%\.modelconvertor\oracle.properties
 ```
-
-설정 예시:
 
 ```properties
 oracle.url=jdbc:oracle:thin:@DB_HOST:1521/SERVICE_NAME
@@ -170,16 +102,18 @@ oracle.password=MY_PASSWORD
 oracle.schema=MY_SCHEMA
 ```
 
-기존 설정 파일이 있으면 덮어쓰지 말고 필요한 환경의 설정인지 먼저 확인하세요. 설정 파일에는 비밀번호가 평문으로 들어가므로 다음 원칙을 지키세요.
+기존 설정 파일이 있으면 덮어쓰지 말고 필요한 환경인지 먼저 확인하세요. 비밀번호가 평문으로 들어가므로 다음 원칙을 지키세요.
 
 - Git에 추가하지 않습니다.
 - Claude Code 대화에 내용을 붙여 넣지 않습니다.
 - 명령줄 인자로 비밀번호를 전달하지 않습니다.
-- 가능한 경우 조회 전용 Oracle 계정을 사용합니다.
+- 가능하면 조회 전용 Oracle 계정을 사용합니다.
 
-## 6. 다른 Java 프로젝트에서 사용
+다른 설정 파일을 쓰려면 CLI에 `--config <path>`를 지정합니다.
 
-모델을 생성할 대상 Java 프로젝트 루트에서 Claude Code를 시작합니다.
+## 다른 Java 프로젝트에서 사용
+
+모델을 생성할 프로젝트 루트에서 Claude Code를 시작합니다.
 
 ```powershell
 Set-Location C:\work\hr-system
@@ -187,126 +121,51 @@ modelconvertor.cmd --help
 claude
 ```
 
-Claude Code에서 스킬을 명시적으로 호출할 수 있습니다.
+스킬을 명시적으로 호출할 수 있습니다.
 
 ```text
 /modelconvertor employee.sql로 EmployeeModel을 만들어줘. 패키지는 com.company.hr.model이야.
 ```
 
-출력 위치를 지정하지 않으면 현재 디렉터리를 기준으로 다음 파일을 생성합니다.
+처음에는 파일을 만들지 말고 `--stdout`으로 결과만 확인하는 것을 권장합니다. `--stdout`도 유효한 Oracle 설정과 연결이 필요하며 파일 쓰기만 생략합니다.
 
-```text
-C:\work\hr-system\src\main\java\com\company\hr\model\EmployeeModel.java
-```
+## 설치 확인
 
-처음에는 파일을 생성하지 말고 결과만 확인하는 것을 권장합니다. `--stdout`도 유효한 Oracle 설정과 연결이 필요하며, 파일 쓰기만 생략합니다.
+1. 새 PowerShell에서 `modelconvertor.cmd --help`가 종료 코드 `0`으로 끝난다.
+2. `%USERPROFILE%\.claude\skills\modelconvertor\SKILL.md`가 존재한다.
+3. 대상 Java 프로젝트에서 새 Claude Code 세션을 시작한다.
+4. `/modelconvertor`가 스킬로 인식된다.
+5. 유효한 Oracle 설정과 연결을 준비한 뒤 `--stdout`으로 생성 결과를 확인한다.
 
-```text
-/modelconvertor employee.sql로 EmployeeModel을 만들되 파일은 쓰지 말고 결과만 보여줘. 패키지는 com.company.hr.model이야.
-```
+## 업데이트
 
-## 7. 설치 확인
-
-다음 항목을 순서대로 확인합니다.
-
-1. 새 PowerShell에서 `modelconvertor.cmd --help`가 종료 코드 `0`으로 끝납니다.
-2. `%USERPROFILE%\.claude\skills\modelconvertor\SKILL.md`가 존재합니다.
-3. 대상 Java 프로젝트에서 새 Claude Code 세션을 시작합니다.
-4. `/modelconvertor`가 스킬로 인식됩니다.
-5. 유효한 Oracle 설정과 연결을 준비한 뒤 `--stdout` 요청으로 파일을 쓰기 전에 생성 결과를 확인합니다.
-6. 실제 Oracle SELECT로 모델 생성을 확인합니다.
-
-## 8. 업데이트
-
-저장소를 갱신하고 JAR를 다시 빌드한 뒤 CLI 파일과 전역 스킬을 업데이트합니다.
+새 Release가 올라오면 저장소를 갱신하고 `install.ps1`을 다시 실행합니다.
 
 ```powershell
-$repo = 'C:\study\modelconvertor'
-Set-Location $repo
+Set-Location C:\tools\modelconvertor-repo
 git pull --ff-only
-mvn clean package
+.\install.ps1 -Force
 ```
 
-업데이트 전에 현재 설치 파일과 전역 `SKILL.md`를 백업하고 변경 내용을 검토하세요. 확인 후 다음 파일을 새 버전으로 교체합니다.
+`install.ps1`이 최신 Release JAR을 다시 내려받고 `modelconvertor.cmd`와 전역 `SKILL.md`를 갱신합니다. 실행 중인 Claude Code 세션이 있으면 새 세션을 시작하세요.
 
-- `C:\tools\modelconvertor\modelconvertor.cmd`
-- `C:\tools\modelconvertor\modelconvertor.jar`
-- `%USERPROFILE%\.claude\skills\modelconvertor\SKILL.md`
+## 제거
 
-다음 예시는 현재 설치 파일을 시간별 백업 폴더에 복사한 후 새 CMD, JAR 및 전역 스킬을 배치합니다. 경로와 백업 내용을 확인한 뒤 실행하세요.
+전역 스킬, PATH, CLI 폴더, Oracle 설정은 서로 독립적입니다. 필요한 범위만 제거하세요.
 
-```powershell
-$repo = 'C:\study\modelconvertor'
-$installDir = 'C:\tools\modelconvertor'
-$globalSkill = Join-Path $env:USERPROFILE '.claude\skills\modelconvertor'
-$backupDir = Join-Path $env:USERPROFILE ('.modelconvertor-backup\' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
-
-$updateSources = @(
-    "$repo\modelconvertor.cmd",
-    "$repo\target\modelconvertor.jar",
-    "$repo\.claude\skills\modelconvertor\SKILL.md"
-)
-$missing = $updateSources | Where-Object { -not (Test-Path -LiteralPath $_) }
-if ($missing) {
-    throw "Missing update file: $($missing -join ', ')"
-}
-
-New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
-Copy-Item -LiteralPath "$installDir\modelconvertor.cmd" -Destination $backupDir
-Copy-Item -LiteralPath "$installDir\modelconvertor.jar" -Destination $backupDir
-Copy-Item -LiteralPath "$globalSkill\SKILL.md" -Destination $backupDir
-
-Copy-Item -LiteralPath "$repo\modelconvertor.cmd" -Destination $installDir -Force
-Copy-Item -LiteralPath "$repo\target\modelconvertor.jar" -Destination $installDir -Force
-Copy-Item -LiteralPath "$repo\.claude\skills\modelconvertor\SKILL.md" -Destination $globalSkill -Force
-```
-
-`ojdbc8.jar`는 JDBC 드라이버 버전을 변경할 때만 교체합니다. 실행 중인 Claude Code 세션이 있다면 스킬 업데이트 후 새 세션을 시작하세요.
-
-## 9. 제거
-
-전역 스킬, PATH, CLI 설치 폴더와 Oracle 설정 파일은 서로 독립적입니다. 필요한 범위만 제거하세요.
-
-### 전역 Claude 스킬
-
-```text
-%USERPROFILE%\.claude\skills\modelconvertor
-```
-
-### 사용자 PATH 항목
-
-현재 사용자 PATH에서 정확히 `C:\tools\modelconvertor`와 일치하는 항목만 제거합니다. 변경 전에 현재 PATH를 백업하세요.
-
-```powershell
-$installDir = 'C:\tools\modelconvertor'
-$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-$entries = @($userPath -split ';' | Where-Object { $_ -and $_ -ne $installDir })
-[Environment]::SetEnvironmentVariable('Path', ($entries -join ';'), 'User')
-```
-
-### CLI 설치 폴더
-
-```text
-C:\tools\modelconvertor
-```
-
-폴더 안에 사용자 파일이 없는지 확인한 뒤 제거하세요.
-
-### Oracle 설정
-
-```text
-%USERPROFILE%\.modelconvertor\oracle.properties
-```
-
-이 파일은 접속 정보를 포함합니다. ModelConvertor를 제거하더라도 사용자가 명시적으로 원할 때만 삭제하세요.
+- 전역 스킬: `%USERPROFILE%\.claude\skills\modelconvertor`
+- 사용자 PATH: `C:\tools\modelconvertor` 항목만 제거(변경 전 백업 권장)
+- CLI 폴더: `C:\tools\modelconvertor`
+- Oracle 설정: `%USERPROFILE%\.modelconvertor\oracle.properties` — 접속 정보를 포함하므로 명시적으로 원할 때만 삭제
 
 ## 오류 확인
 
 | 증상 | 확인 사항 |
 |---|---|
-| `modelconvertor.cmd`를 찾을 수 없음 | 새 터미널을 열었는지, 사용자 PATH와 CLI 설치 폴더가 맞는지 확인 |
+| `modelconvertor.cmd`를 찾을 수 없음 | 새 터미널을 열었는지, 사용자 PATH에 CLI 폴더가 있는지 확인 |
+| `install.ps1` 다운로드 실패 | Release가 발행됐는지, 비공개 저장소면 `gh`로 받았는지 확인 |
 | `Could not find or load main class` | CLI 폴더에 `modelconvertor.jar`가 있는지 확인 |
-| `No suitable driver` | CLI 폴더에 올바른 `ojdbc8.jar`가 있는지 확인 |
+| Java 관련 오류 또는 `java`를 찾을 수 없음 | Java 8+ 런타임이 설치되어 PATH에 있는지 확인 |
 | Oracle 설정 오류 | `%USERPROFILE%\.modelconvertor\oracle.properties` 경로와 네 필수 키 확인 |
 | 모델이 잘못된 위치에 생성됨 | Claude Code를 시작한 현재 디렉터리 또는 `--output` 확인 |
 | `/modelconvertor`가 보이지 않음 | 전역 `SKILL.md` 경로를 확인하고 새 Claude Code 세션 시작 |
