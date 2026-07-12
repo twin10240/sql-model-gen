@@ -1,6 +1,7 @@
 target/
 dependency-reduced-pom.xml
 .worktrees/
+.claude/settings.local.json
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
