@@ -171,7 +171,7 @@ git pull --ff-only
 | 증상 | 확인 사항 |
 |---|---|
 | `modelconvertor.cmd`를 찾을 수 없음 | 새 터미널을 열었는지, 사용자 PATH에 CLI 폴더가 있는지 확인 |
-| `install.ps1` 다운로드 실패 | Release가 발행됐는지, 비공개 저장소면 `gh`로 받았는지 확인 |
+| `install.ps1` 다운로드 실패 | Release가 발행됐는지, 비공개 저장소면 `gh auth login` 후 `-UseGh`로 실행했는지 확인 |
 | `Could not find or load main class` | CLI 폴더에 `modelconvertor.jar`가 있는지 확인 |
 | Java 관련 오류 또는 `java`를 찾을 수 없음 | Java 8+ 런타임이 설치되어 PATH에 있는지 확인 |
 | Oracle 설정 오류 | `%USERPROFILE%\.modelconvertor\oracle.properties` 경로와 네 필수 키 확인 |

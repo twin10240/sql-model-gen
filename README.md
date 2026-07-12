@@ -11,6 +11,17 @@ Oracle `SELECT` SQL의 JDBC 결과 메타데이터를 이용해 Java 8용 DZ 모
 - 기존 파일 보호와 명시적 `--overwrite` 처리
 - DB 결과 행을 사용하지 않는 메타데이터 중심 처리
 
+## 빠른 시작
+
+새 PC에서 처음 사용하는 경우입니다.
+
+1. **설치**: 저장소를 clone한 뒤 `.\install.ps1` 실행 → Release에서 실행 JAR을 내려받아 CLI·전역 스킬·PATH까지 구성합니다. 자세히는 [전역 설치 가이드](docs/global-installation-guide.md).
+2. **설정**: `%USERPROFILE%\.modelconvertor\oracle.properties`에 접속 정보를 작성합니다(아래 [Oracle 접속 설정](#oracle-접속-설정)). 비밀번호는 채팅에 붙여 넣지 않습니다.
+3. **세션 시작**: 새 터미널에서 `modelconvertor.cmd --help`로 확인하고, 대상 Java 프로젝트에서 새 Claude Code 세션을 시작합니다.
+4. **실행**: 스킬에 자연어로 요청([스킬 사용 가이드](docs/skill-usage-guide.md))하거나 CLI를 직접 실행합니다([사용법](#사용법)). 처음에는 `--stdout`으로 파일을 만들지 않고 결과만 확인하는 것을 권장합니다.
+
+Java 8 이상 런타임이 필요하며, 실행 JAR에는 Oracle JDBC 드라이버(`ojdbc8`)가 포함되어 있습니다.
+
 ## 준비 사항
 
 사용 시:
