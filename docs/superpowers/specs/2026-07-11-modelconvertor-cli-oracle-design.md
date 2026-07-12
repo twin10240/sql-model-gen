@@ -72,7 +72,7 @@ oracle.schema=MY_SCHEMA
 - 접속 정보와 비밀번호를 로그에 출력하지 않는다.
 - 가능하면 조회 전용 DB 계정을 사용한다.
 - 기본 경로 외 설정은 `--config <경로>`로 지정한다.
-- 구현은 `java.sql` API만 사용하고 `ojdbc8.jar`는 실행 시 클래스패스에 추가한다.
+- 구현은 `java.sql` API만 사용한다. (드라이버 제공 방식은 [2026-07-12-fatjar-release-distribution-design.md](2026-07-12-fatjar-release-distribution-design.md)로 대체되었다. `ojdbc8`을 fat jar에 포함한다.)
 
 ## 4. CLI 입력
 
@@ -326,8 +326,8 @@ JDBC 결과 컬럼은 모두 모델에 포함한다. 기존의 `RN`/`ROWNUM` 자
 - Java 8 source/target 또는 release 호환 설정
 - 프로젝트 인코딩 UTF-8
 - `maven-jar-plugin`으로 `Main-Class` 지정
-- 외부 `ojdbc8.jar`는 CMD의 런타임 클래스패스로 제공
-- Shade 플러그인은 사용하지 않는다.
+- ~~외부 `ojdbc8.jar`는 CMD의 런타임 클래스패스로 제공~~ → [2026-07-12-fatjar-release-distribution-design.md](2026-07-12-fatjar-release-distribution-design.md)로 대체: `ojdbc8`을 fat jar에 포함
+- ~~Shade 플러그인은 사용하지 않는다.~~ → 대체: `maven-shade-plugin`으로 fat jar 생성
 - Java 8 호환 JUnit 테스트 의존성을 추가한다.
 
 ## 16. 검증
