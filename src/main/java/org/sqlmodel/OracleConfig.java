@@ -54,11 +54,7 @@ final class OracleConfig {
     }
 
     static Path defaultPath() {
-        return defaultPath(Paths.get(System.getProperty("user.home")));
-    }
-
-    static Path defaultPath(Path userHome) {
-        return userHome.resolve(".modelconvertor").resolve("oracle.properties");
+        return Paths.get("C:\\Douzone\\dews-web\\config\\modelconvertor\\oracle.properties");
     }
 
     private static void require(Properties properties, String key, List<String> missing) {

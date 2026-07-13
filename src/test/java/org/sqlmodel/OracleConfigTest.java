@@ -34,11 +34,9 @@ public class OracleConfigTest {
     }
 
     @Test
-    public void resolvesDefaultPathUnderUserHome() {
-        Path home = temporaryFolder.getRoot().toPath();
-
-        assertEquals(home.resolve(".modelconvertor").resolve("oracle.properties"),
-                OracleConfig.defaultPath(home));
+    public void usesFixedDefaultPath() {
+        assertEquals(Paths.get("C:\\Douzone\\dews-web\\config\\modelconvertor\\oracle.properties"),
+                OracleConfig.defaultPath());
     }
 
     @Test
