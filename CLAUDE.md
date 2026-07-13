@@ -10,7 +10,7 @@ ModelConvertor는 Oracle `SELECT`로 Java DZ 모델을 생성하는 Windows CLI 
 2. 저장소 루트에서 `.\install.ps1`을 실행한다. 비공개 저장소면 `.\install.ps1 -UseGh`(사전에 `gh auth login` 필요).
    - 최신 Release에서 `modelconvertor.jar`를 내려받아 CLI 폴더·사용자 PATH·전역 스킬(`~/.claude/skills/modelconvertor/SKILL.md`)을 구성한다.
    - install.ps1은 다운로드한 JAR을 실행하지 않고 구조만 검증한다.
-3. `oracle.properties`가 없으면 사용자에게 작성을 안내한다. **Oracle 비밀번호를 채팅이나 명령 인자로 요청하지 않는다.**
+3. `C:\Douzone\dews-web\config\modelconvertor\oracle.properties`가 없으면 사용자에게 작성을 안내한다. **Oracle 비밀번호를 채팅이나 명령 인자로 요청하지 않는다.**
 4. 설치 후 **새 Claude Code 세션**과, PATH 반영을 위한 새 터미널이 필요함을 안내한다.
 
 업데이트: `git pull --ff-only` 후 `.\install.ps1 -Force`. 자세한 절차는 `docs/global-installation-guide.md`.

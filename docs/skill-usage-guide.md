@@ -116,7 +116,7 @@ SQL 오류는 발생 단계에 따라 종료 코드가 다릅니다.
 스킬이 CLI를 호출할 수 있도록 다음 준비가 필요합니다.
 
 - `modelconvertor.jar`, `modelconvertor.cmd` 설치(`ojdbc8` 드라이버는 JAR에 포함)
-- `%USERPROFILE%\.modelconvertor\oracle.properties` 또는 별도 Oracle 설정 파일
+- `C:\Douzone\dews-web\config\modelconvertor\oracle.properties` 또는 별도 Oracle 설정 파일
 - 가능한 경우 조회 전용 Oracle 계정
 - 모델을 생성할 Java 프로젝트를 현재 작업 디렉터리로 사용
 

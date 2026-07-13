@@ -148,7 +148,7 @@ try {
 }
 
 # --- Oracle config check (do not create; it holds a plaintext password) --------
-$oracleProps = Join-Path $env:USERPROFILE '.modelconvertor\oracle.properties'
+$oracleProps = 'C:\Douzone\dews-web\config\modelconvertor\oracle.properties'
 if (-not (Test-Path -LiteralPath $oracleProps)) {
     Write-Warning "Oracle config not found: $oracleProps"
     Write-Warning 'Create it with oracle.url / oracle.username / oracle.password / oracle.schema before generating models.'

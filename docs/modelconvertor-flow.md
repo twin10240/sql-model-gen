@@ -122,7 +122,7 @@ Main.main(args)
 `OracleConfig`는 기본적으로 다음 파일을 읽는다.
 
 ```text
-%USERPROFILE%\.modelconvertor\oracle.properties
+C:\Douzone\dews-web\config\modelconvertor\oracle.properties
 ```
 
 설정 예시는 다음과 같다.

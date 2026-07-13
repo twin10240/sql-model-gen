@@ -16,7 +16,7 @@ Oracle `SELECT` SQL의 JDBC 결과 메타데이터를 이용해 Java 8용 DZ 모
 새 PC에서 처음 사용하는 경우입니다.
 
 1. **설치**: 저장소를 clone한 뒤 `.\install.ps1` 실행 → Release에서 실행 JAR을 내려받아 CLI·전역 스킬·PATH까지 구성합니다. 자세히는 [전역 설치 가이드](docs/global-installation-guide.md). Claude Code에 설치를 맡길 수도 있습니다(가이드의 "Claude Code 에이전트로 설치하기").
-2. **설정**: `%USERPROFILE%\.modelconvertor\oracle.properties`에 접속 정보를 작성합니다(아래 [Oracle 접속 설정](#oracle-접속-설정)). 비밀번호는 채팅에 붙여 넣지 않습니다.
+2. **설정**: `C:\Douzone\dews-web\config\modelconvertor\oracle.properties`에 접속 정보를 작성합니다(아래 [Oracle 접속 설정](#oracle-접속-설정)). 비밀번호는 채팅에 붙여 넣지 않습니다.
 3. **세션 시작**: 새 터미널에서 `modelconvertor.cmd --help`로 확인하고, 대상 Java 프로젝트에서 새 Claude Code 세션을 시작합니다.
 4. **실행**: 스킬에 자연어로 요청([스킬 사용 가이드](docs/skill-usage-guide.md))하거나 CLI를 직접 실행합니다([사용법](#사용법)). 처음에는 `--stdout`으로 파일을 만들지 않고 결과만 확인하는 것을 권장합니다.
 
@@ -86,13 +86,7 @@ C:\tools\modelconvertor\modelconvertor.cmd --help
 기본 설정 파일 위치는 다음과 같습니다.
 
 ```text
-%USERPROFILE%\.modelconvertor\oracle.properties
-```
-
-PowerShell에서는 다음 경로입니다.
-
-```powershell
-$env:USERPROFILE\.modelconvertor\oracle.properties
+C:\Douzone\dews-web\config\modelconvertor\oracle.properties
 ```
 
 설정 파일 예시입니다.
@@ -103,6 +97,8 @@ oracle.username=MY_USER
 oracle.password=MY_PASSWORD
 oracle.schema=MY_SCHEMA
 ```
+
+기존 설정의 `db.jdbc.owner` 값은 `oracle.schema`에 해당합니다. `jdbc:log4jdbc:oracle:` URL은 `jdbc:oracle:`로 바꿔 사용합니다.
 
 `oracle.url`은 Oracle 환경에 맞게 변경합니다.
 

@@ -21,7 +21,7 @@ C:\tools\modelconvertor\
 %USERPROFILE%\.claude\skills\modelconvertor\
 └─ SKILL.md                  (전역 스킬)
 
-%USERPROFILE%\.modelconvertor\
+C:\Douzone\dews-web\config\modelconvertor\
 └─ oracle.properties         (접속 정보, 직접 작성)
 ```
 
@@ -90,7 +90,7 @@ gh auth login
 2. 저장소의 `modelconvertor.cmd`를 같은 폴더에 복사한다.
 3. `C:\tools\modelconvertor`를 사용자 `PATH`에 추가한다.
 4. 저장소의 `.claude\skills\modelconvertor\SKILL.md`를 `%USERPROFILE%\.claude\skills\modelconvertor\`로 복사한다.
-5. `%USERPROFILE%\.modelconvertor\oracle.properties`를 작성한다(아래 참고).
+5. `C:\Douzone\dews-web\config\modelconvertor\oracle.properties`를 작성한다(아래 참고).
 
 ## 직접 빌드 (선택)
 
@@ -108,7 +108,7 @@ mvn clean package
 기본 설정 파일 위치입니다.
 
 ```text
-%USERPROFILE%\.modelconvertor\oracle.properties
+C:\Douzone\dews-web\config\modelconvertor\oracle.properties
 ```
 
 ```properties
@@ -172,7 +172,7 @@ git pull --ff-only
 - 전역 스킬: `%USERPROFILE%\.claude\skills\modelconvertor`
 - 사용자 PATH: `C:\tools\modelconvertor` 항목만 제거(변경 전 백업 권장)
 - CLI 폴더: `C:\tools\modelconvertor`
-- Oracle 설정: `%USERPROFILE%\.modelconvertor\oracle.properties` — 접속 정보를 포함하므로 명시적으로 원할 때만 삭제
+- Oracle 설정: `C:\Douzone\dews-web\config\modelconvertor\oracle.properties` — 접속 정보를 포함하므로 명시적으로 원할 때만 삭제
 
 ## 오류 확인
 
@@ -182,6 +182,6 @@ git pull --ff-only
 | `install.ps1` 다운로드 실패 | Release가 발행됐는지, 비공개 저장소면 `gh auth login` 후 `-UseGh`로 실행했는지 확인 |
 | `Could not find or load main class` | CLI 폴더에 `modelconvertor.jar`가 있는지 확인 |
 | Java 관련 오류 또는 `java`를 찾을 수 없음 | Java 8+ 런타임이 설치되어 PATH에 있는지 확인 |
-| Oracle 설정 오류 | `%USERPROFILE%\.modelconvertor\oracle.properties` 경로와 네 필수 키 확인 |
+| Oracle 설정 오류 | `C:\Douzone\dews-web\config\modelconvertor\oracle.properties` 경로와 네 필수 키 확인 |
 | 모델이 잘못된 위치에 생성됨 | Claude Code를 시작한 현재 디렉터리 또는 `--output` 확인 |
 | `/modelconvertor`가 보이지 않음 | 전역 `SKILL.md` 경로를 확인하고 새 Claude Code 세션 시작 |
